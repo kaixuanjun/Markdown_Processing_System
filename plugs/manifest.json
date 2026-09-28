@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "plugins": [
+    "iframe",
+    "mps-manim",
+    "marimo",
+    "camera",
+    "slide-quiz",
+    "mps-sim"
+  ]
+}

@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MPS·幻灯片 - Markdown 驱动的演示引擎</title>
+
+<!-- Markdown-it 及插件 -->
+<script src="./lib/markdown-it.min.js"></script>
+<script src="./lib/markdown-it-sub.min.js"></script>
+<script src="./lib/markdown-it-sup.min.js"></script>
+<script src="./lib/markdown-it-mark.min.js"></script>
+<script src="./lib/markdown-it-multimd-table.min.js"></script>
+<!-- KaTeX -->
+<link rel="stylesheet" href="./lib/katex.min.css" />
+<script src="./lib/katex.min.js"></script>
+<!-- Mermaid -->
+<script src="./lib/mermaid.min.js"></script>
+<!-- 插件宿主：扫描 plugs/ 并安装启用的插件（数学动画等） -->
+<script src="./lib/mps-plugins.js"></script>
+
+<style>
+/* ================= 主题变量 ================= */
+:root {
+    --bg-body: #eef0f4;
+    --bg-header: #ffffff;
+    --bg-slide: #ffffff;
+    --bg-panel: #ffffff;
+    --bg-drawer: #ffffff;
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --text-muted: #8b949e;
+    --border-color: #d0d7de;
+    --border-light: #e1e4e8;
+    --code-bg: #f6f8fa;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --table-border: #a8b1ba;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .06);
+    --stage-shadow: 0 14px 50px rgba(15, 23, 42, .16);
+    --hover-bg: #f3f4f6;
+    --overlay: rgba(15, 23, 42, .35);
+}
+
+body.dark-mode {
+    --bg-body: #131518;
+    --bg-header: #22252a;
+    --bg-slide: #1c1f23;
+    --bg-panel: #22252a;
+    --bg-drawer: #1b1e22;
+    --text-primary: #e6edf3;
+    --text-secondary: #adbac7;
+    --text-muted: #768390;
+    --border-color: #3a3f46;
+    --border-light: #30353b;
+    --code-bg: #26292e;
+    --accent: #58a6ff;
+    --accent-soft: #1f3a5f;
+    --table-border: #6e7681;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    --stage-shadow: 0 14px 50px rgba(0, 0, 0, .65);
+    --hover-bg: #2d3138;
+    --overlay: rgba(0, 0, 0, .55);
+}
+
+/* ================= 基础 ================= */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+    background: var(--bg-body);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    transition: background .25s, color .25s;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ================= 顶栏 ================= */
+.app-header {
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    z-index: 30;
+    transition: background .25s, border-color .25s;
+}
+
+.app-header .logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.app-header .title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+
+.app-header .title .accent { color: var(--accent); }
+
+.app-header .version {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: 2px;
+}
+
+.spacer { flex: 1; }
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ================= 按钮 ================= */
+.btn {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background .15s, border-color .15s, opacity .15s, color .15s;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.btn:hover { background: var(--hover-bg); border-color: var(--text-muted); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { opacity: .88; }
+.btn.icon-only { width: 32px; padding: 0; }
+
+/* ================= 舞台 ================= */
+.stage-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow: hidden;
+    transition: background .25s;
+}
+
+.stage {
+    position: relative;
+    background: var(--bg-slide);
+    border-radius: 14px;
+    box-shadow: var(--stage-shadow);
+    overflow: hidden;
+    cursor: pointer;
+    transition: background .25s, box-shadow .25s;
+    /* 宽高由 JS 计算 */
+}
+
+.stage.pulse {
+    animation: stagePulse .4s ease;
+}
+
+@keyframes stagePulse {
+    0%   { box-shadow: var(--stage-shadow), 0 0 0 0 rgba(9, 105, 218, .5); }
+    100% { box-shadow: var(--stage-shadow), 0 0 0 18px rgba(9, 105, 218, 0); }
+}
+
+/* ================= 幻灯片内容 ================= */
+.slide {
+    position: absolute;
+    inset: 0;
+    padding: 1.6em 2em;
+    overflow-y: auto;
+    overflow-x: hidden;
+    line-height: 1.65;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+    /* font-size 由 JS 设定 */
+}
+
+.slide::-webkit-scrollbar { width: 8px; }
+.slide::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.slide-block + .slide-block { margin-top: .9em; }
+
+.slide-block.enter {
+    animation: blockIn .42s cubic-bezier(.22, .85, .3, 1) both;
+}
+
+@keyframes blockIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 15px;
+    text-align: center;
+    padding: 2em;
+    line-height: 1.8;
+}
+
+/* ================= 幻灯片内 Markdown 样式 ================= */
+.slide h1 {
+    font-size: 2.1em;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 .65em;
+    padding-bottom: .18em;
+    border-bottom: 3px solid var(--accent);
+    display: inline-block;
+    letter-spacing: -.01em;
+}
+
+.slide h2 {
+    font-size: 1.45em;
+    font-weight: 650;
+    line-height: 1.3;
+    margin: 0 0 .55em;
+    display: flex;
+    align-items: center;
+    gap: .5em;
+}
+
+.slide h2::before {
+    content: '';
+    flex-shrink: 0;
+    width: .18em;
+    height: .95em;
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+.slide h3 {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin: .15em 0 .45em;
+    color: var(--text-primary);
+}
+
+.slide h4 {
+    font-size: 1.08em;
+    font-weight: 600;
+    margin: .15em 0 .4em;
+    color: var(--text-secondary);
+}
+
+.slide h5, .slide h6 {
+    font-size: 1em;
+    font-weight: 600;
+    margin: .15em 0 .35em;
+    color: var(--text-secondary);
+}
+
+.slide p { margin: .5em 0; }
+
+.slide strong { font-weight: 700; }
+.slide mark {
+    background: #fff3b0;
+    color: inherit;
+    padding: 0 .18em;
+    border-radius: 3px;
+}
+body.dark-mode .slide mark { background: #6b5b1a; }
+
+.slide ul, .slide ol {
+    padding-left: 1.5em;
+    margin: .5em 0;
+}
+
+.slide li { margin: .22em 0; }
+.slide li::marker { color: var(--accent); }
+
+.slide ul ul, .slide ul ol,
+.slide ol ul, .slide ol ol {
+    margin: .2em 0;
+    padding-left: 1.5em;
+}
+
+.slide .task-list-item {
+    list-style: none;
+    margin-left: -1.45em;
+}
+
+.slide .task-list-item input[type="checkbox"] {
+    margin-right: .5em;
+    vertical-align: middle;
+    accent-color: var(--accent);
+    pointer-events: none;
+}
+
+.slide code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: .88em;
+    background: var(--code-bg);
+    padding: .12em .4em;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+}
+
+.slide pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 9px;
+    padding: .85em 1.05em;
+    overflow-x: auto;
+    margin: .7em 0;
+}
+
+.slide pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: .85em;
+    line-height: 1.6;
+}
+
+.slide blockquote {
+    border-left: .25em solid var(--accent);
+    padding: .2em 0 .2em 1em;
+    margin: .7em 0;
+    color: var(--text-secondary);
+}
+
+.slide blockquote blockquote {
+    margin-left: 1.2em;
+    border-left-color: var(--text-muted);
+}
+
+.slide table {
+    border-collapse: collapse;
+    margin: .75em 0;
+    font-size: .95em;
+}
+
+.slide th, .slide td {
+    border: 2px solid var(--table-border);
+    padding: .38em .9em;
+    text-align: left;
+}
+
+.slide th {
+    background: var(--code-bg);
+    font-weight: 600;
+}
+
+.slide img {
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+.slide hr {
+    border: none;
+    height: 1px;
+    background: var(--border-color);
+    margin: 1.1em 0;
+}
+
+.slide a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color .15s;
+}
+
+.slide a:hover { border-bottom-color: var(--accent); }
+
+.slide .katex-display {
+    margin: .75em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: .2em 0;
+}
+
+.slide .mermaid {
+    text-align: center;
+    margin: .8em 0;
+    overflow-x: auto;
+}
+
+/* ================= 暗色 Mermaid 适配 ================= */
+body.dark-mode .slide .mermaid svg { background: transparent; }
+body.dark-mode .slide .mermaid .node rect,
+body.dark-mode .slide .mermaid .node circle,
+body.dark-mode .slide .mermaid .node ellipse,
+body.dark-mode .slide .mermaid .node polygon,
+body.dark-mode .slide .mermaid .node path { stroke: #aaa; stroke-width: 1.5px; }
+body.dark-mode .slide .mermaid .edgePath .path { stroke: #aaa !important; }
+body.dark-mode .slide .mermaid .cluster rect { stroke: #888 !important; }
+body.dark-mode .slide .mermaid .actor { stroke: #aaa !important; fill: #2d2f33 !important; }
+body.dark-mode .slide .mermaid .actor-line { stroke: #888 !important; }
+body.dark-mode .slide .mermaid .messageLine0,
+body.dark-mode .slide .mermaid .messageLine1 { stroke: #aaa !important; }
+body.dark-mode .slide .mermaid .loopLine { stroke: #888 !important; }
+body.dark-mode .slide .mermaid .task { stroke: #aaa !important; }
+body.dark-mode .slide .mermaid .grid .tick { stroke: #555 !important; }
+body.dark-mode .slide .mermaid .today { stroke: #f44 !important; }
+
+/* ================= 底部控制条 ================= */
+.deck-bar {
+    flex-shrink: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    background: var(--bg-header);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, .04);
+    z-index: 20;
+    transition: background .25s, border-color .25s;
+}
+
+.nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+    user-select: none;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.page-info {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 56px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.step-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 46px;
+    font-variant-numeric: tabular-nums;
+}
+
+.deck-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.deck-hint kbd {
+    font-family: inherit;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--code-bg);
+    color: var(--text-secondary);
+}
+
+.progress-track {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-light);
+    overflow: hidden;
+    min-width: 60px;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), #6cb6ff);
+    transition: width .35s cubic-bezier(.3, .9, .3, 1);
+}
+
+/* ================= 编辑抽屉 ================= */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .25s, visibility .25s;
+    z-index: 40;
+    backdrop-filter: blur(2px);
+}
+
+.overlay.show { opacity: 1; visibility: visible; }
+
+.drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(560px, 92vw);
+    background: var(--bg-drawer);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -8px 0 40px rgba(0, 0, 0, .18);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(102%);
+    transition: transform .3s cubic-bezier(.3, .9, .3, 1), background .25s;
+    z-index: 50;
+}
+
+.drawer.open { transform: translateX(0); }
+
+.drawer-header {
+    flex-shrink: 0;
+    height: 52px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-panel);
+}
+
+.drawer-header .drawer-title {
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.drawer-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 10px;
+}
+
+#sourceInput {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    resize: none;
+    outline: none;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    padding: 14px 16px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.75;
+    background: var(--bg-slide);
+    color: var(--text-primary);
+    tab-size: 4;
+    transition: border-color .15s, background .25s;
+}
+
+#sourceInput:focus { border-color: var(--accent); }
+
+.drawer-footer {
+    flex-shrink: 0;
+    padding: 0 14px 12px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.drawer-footer code {
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border-light);
+    font-family: 'Consolas', monospace;
+}
+
+/* ================= 移动端 ================= */
+@media (max-width: 720px) {
+    .app-header { height: 44px; padding: 0 10px; }
+    .app-header .version { display: none; }
+    .stage-wrap { padding: 8px; }
+    .deck-bar { height: 46px; gap: 8px; padding: 0 10px; }
+    .deck-hint { display: none; }
+    .drawer { width: 100vw; }
+    .btn { height: 30px; padding: 0 10px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 顶栏 ================= -->
+<header class="app-header">
+    <div class="logo">▶</div>
+    <div class="title">
+        MPS<span class="accent">·</span>幻灯片
+        <span class="version">v1.0</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="header-actions">
+        <button class="btn" id="editBtn" title="编辑 Markdown 源文档 (E)">
+            <span>✎</span><span>编辑</span>
+        </button>
+        <button class="btn icon-only" id="themeBtn" title="切换深浅色">🌙</button>
+        <button class="btn icon-only" id="fullscreenBtn" title="全屏 (F)">⛶</button>
+    </div>
+</header>
+
+<!-- ================= 舞台 ================= -->
+<main class="stage-wrap" id="stageWrap">
+    <div class="stage" id="stage">
+        <div class="slide" id="slide"></div>
+    </div>
+</main>
+
+<!-- ================= 底部控制条 ================= -->
+<footer class="deck-bar">
+    <button class="nav-btn" id="prevBtn" title="上一页 (←)">‹</button>
+    <button class="nav-btn" id="nextBtn" title="下一页 (→)">›</button>
+    <span class="page-info" id="pageInfo">0 / 0</span>
+    <span class="step-info" id="stepInfo"></span>
+    <div class="progress-track">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <span class="deck-hint">
+        <kbd>空格</kbd> / <kbd>→</kbd> 推进 · <kbd>←</kbd> 回退 · <kbd>F</kbd> 全屏
+    </span>
+</footer>
+
+<!-- ================= 编辑抽屉 ================= -->
+<div class="overlay" id="overlay"></div>
+
+<aside class="drawer" id="drawer">
+    <div class="drawer-header">
+        <span class="drawer-title">Markdown 源文档</span>
+        <button class="btn" id="sampleBtn">示例</button>
+        <button class="btn" id="clearBtn">清空</button>
+        <button class="btn primary" id="applyBtn">生成幻灯片</button>
+        <button class="btn icon-only" id="closeDrawerBtn">✕</button>
+    </div>
+    <div class="drawer-body">
+        <textarea id="sourceInput" spellcheck="false" placeholder="# 第一页标题&#10;&#10;这里的内容属于第一页。&#10;&#10;## 第一个断点&#10;&#10;点击后才会出现。&#10;&#10;### 更深的断点&#10;&#10;再次点击后出现。&#10;&#10;# 第二页标题&#10;&#10;新的一页。"></textarea>
+    </div>
+    <div class="drawer-footer">
+        <span><code>#</code> 分页 · <code>##</code> 及更深层级 = 断点</span>
+        <span><code>Ctrl</code> + <code>Enter</code> 生成</span>
+    </div>
+</aside>
+
+<script>
+(function () {
+    'use strict';
+
+    /* =========================================================
+       1. Markdown-it 初始化
+       ========================================================= */
+    const md = window.markdownit({
+        html: true,
+        linkify: true,
+        typographer: true,
+        breaks: true
+    });
+
+    try {
+        if (window.markdownitSub) md.use(window.markdownitSub);
+        if (window.markdownitSup) md.use(window.markdownitSup);
+        if (window.markdownitMark) md.use(window.markdownitMark);
+        if (window.markdownitMultimdTable) {
+            md.use(window.markdownitMultimdTable, {
+                multiline: true,
+                rowspan: true,
+                headerless: true,
+                multibody: true,
+                autolabel: true
+            });
+        }
+    } catch (e) {
+        console.warn('markdown-it 插件加载警告:', e);
+    }
+
+    // 自定义 fence：mermaid 代码块由宿主处理，
+    // 其余语言（如 manim）交给插件管理器注册的围栏渲染器
+    const hostFence = function (tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const info = token.info.trim();
+        if (info === 'mermaid') {
+            return '<div class="mermaid">' + token.content + '</div>';
+        }
+        const prev = md.renderer.rules.__mpsHostPrev;
+        if (prev) return prev(tokens, idx, options, env, self);
+        return self.renderToken(tokens, idx, options);
+    };
+    md.renderer.rules.__mpsHostPrev = md.renderer.rules.fence || null;
+    md.renderer.rules.fence = hostFence;
+
+    // 暴露给插件的导航能力（可选能力；插件经 ctx.nav 使用，动手时先判断非空）
+    const nav = {
+        get slide() { return slideIndex; },
+        get step() { return stepIndex; },
+        get total() { return deck.length; },
+        get steps() { return deck.length ? deck[slideIndex].blocks.length : 0; },
+        next: function () { next(); },
+        prev: function () { prev(); },
+        goto: function (s, st) { gotoSlide(s, st); }
+    };
+
+    MPSPlugins.init({
+        host: 'engine',
+        md: md,
+        fence: hostFence,
+        refresh: refreshAll,
+        getSlideEl: function () { return el.slide; },
+        getDeckSource: function () { return deckSource; },
+        getNav: function () { return nav; }
+    });
+
+    /* =========================================================
+       2. DOM 引用
+       ========================================================= */
+    const el = {
+        stage: document.getElementById('stage'),
+        slide: document.getElementById('slide'),
+        stageWrap: document.getElementById('stageWrap'),
+        pageInfo: document.getElementById('pageInfo'),
+        stepInfo: document.getElementById('stepInfo'),
+        progressBar: document.getElementById('progressBar'),
+        prevBtn: document.getElementById('prevBtn'),
+        nextBtn: document.getElementById('nextBtn'),
+        editBtn: document.getElementById('editBtn'),
+        themeBtn: document.getElementById('themeBtn'),
+        fullscreenBtn: document.getElementById('fullscreenBtn'),
+        drawer: document.getElementById('drawer'),
+        overlay: document.getElementById('overlay'),
+        sourceInput: document.getElementById('sourceInput'),
+        applyBtn: document.getElementById('applyBtn'),
+        sampleBtn: document.getElementById('sampleBtn'),
+        clearBtn: document.getElementById('clearBtn'),
+        closeDrawerBtn: document.getElementById('closeDrawerBtn')
+    };
+
+    /* =========================================================
+       3. 状态
+       ========================================================= */
+    let deck = [];                 // 解析后的幻灯片数组
+    let deckSource = '';           // 当前生效的 Markdown 源（插件可通过 ctx.getDeckSource() 读取）
+    let slideIndex = 0;            // 当前页索引
+    let stepIndex = 0;             // 当前页已展示到第几个块
+    let renderedSlideIndex = -1;   // DOM 中当前渲染的页
+    let renderedStepIndex = -1;    // DOM 中当前渲染到第几步
+    let isDark = false;
+
+    /* =========================================================
+       4. 任务列表渲染（markdown-it 的 task list 插件替代）
+       ========================================================= */
+    function renderTaskLists(html) {
+        return html.replace(/<li>([\s\S]*?)<\/li>/g, function (match, content) {
+            const text = content.replace(/<[^>]*>/g, '').trim();
+            const m = text.match(/^\[([ xX])\]\s+(.*)/);
+            if (m) {
+                const checked = m[1].toLowerCase() === 'x';
+                return '<li class="task-list-item"><input type="checkbox" ' +
+                    (checked ? 'checked' : '') + ' disabled> ' + m[2] + '</li>';
+            }
+            return match;
+        });
+    }
+
+    /* =========================================================
+       5. Markdown → HTML（含 KaTeX / Mermaid）
+       ========================================================= */
+    function renderMarkdown(text) {
+        if (!text) return '';
+
+        let idx = 0;
+        const placeholders = [];
+
+        // 块级公式 $$...$$
+        let processed = text.replace(/\$\$([\s\S]+?)\$\$/g, function (m, content) {
+            const key = '<!--MPSMATHB' + (idx++) + '-->';
+            placeholders.push({ type: 'block', content: content.trim(), key: key });
+            return key;
+        });
+
+        // 行内公式 $...$
+        processed = processed.replace(/\$([^\$]+?)\$/g, function (m, content) {
+            if (content.indexOf('MPSMATHB') !== -1) return m;
+            const key = '<!--MPSMATHI' + (idx++) + '-->';
+            placeholders.push({ type: 'inline', content: content.trim(), key: key });
+            return key;
+        });
+
+        let html = md.render(processed);
+
+        // 替换公式占位符
+        placeholders.forEach(function (p) {
+            let rendered;
+            try {
+                if (window.katex) {
+                    rendered = window.katex.renderToString(p.content, {
+                        displayMode: p.type === 'block',
+                        throwOnError: false
+                    });
+                } else {
+                    throw new Error('no katex');
+                }
+            } catch (e) {
+                rendered = p.type === 'block'
+                    ? '$$' + p.content + '$$'
+                    : '$' + p.content + '$';
+            }
+            html = html.split(p.key).join(rendered);
+        });
+
+        return renderTaskLists(html);
+    }
+
+    /* =========================================================
+       6. Markdown 解析 → 幻灯片结构
+       ---------------------------------------------------------
+       # 一级标题        → 新的一页
+       ## ~ ###### 标题  → 当前页的断点（逐个显示）
+       ========================================================= */
+    function parseDeck(text) {
+        const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+        const slides = [];
+        let slide = null;
+        let chunk = null;
+        let inFence = false;
+        let fenceChar = '';
+        let fenceLen = 0;   // 开围栏的反引号数量，用于判断收尾（见下方）
+
+        function ensureSlide() {
+            if (!slide) {
+                slide = { title: '', blocks: [] };
+                slides.push(slide);
+            }
+        }
+
+        function endChunk() {
+            if (slide && chunk) {
+                const content = chunk.lines.join('\n').trim();
+                if (content) {
+                    slide.blocks.push({ level: chunk.level, content: content });
+                }
+            }
+            chunk = null;
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // —— 围栏代码块保护 ——
+            const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+            if (fenceMatch) {
+                const marker = fenceMatch[1];
+                const ch = marker.charAt(0);
+                if (!inFence) {
+                    inFence = true;
+                    fenceChar = ch;
+                    fenceLen = marker.length;
+                } else if (ch === fenceChar && marker.length >= fenceLen &&
+                           /^\s*$/.test(fenceMatch[2])) {
+                    // 收尾围栏必须「同字符、不短于开围栏、且后面没有信息串」（CommonMark）。
+                    // 少了长度判断，「四反引号块里嵌三反引号」的例子会在内层就被判为结束，
+                    // 于是示例里的 # 变成分页、示例里的 HTML 泄漏成真标签。
+                    inFence = false;
+                    fenceChar = '';
+                    fenceLen = 0;
+                }
+                if (!chunk) { ensureSlide(); chunk = { level: 0, lines: [] }; }
+                chunk.lines.push(line);
+                continue;
+            }
+
+            if (inFence) {
+                if (!chunk) { ensureSlide(); chunk = { level: 0, lines: [] }; }
+                chunk.lines.push(line);
+                continue;
+            }
+
+            // —— 标题检测 ——
+            const hMatch = line.match(/^(#{1,6})\s+(.*)$/);
+            if (hMatch) {
+                const level = hMatch[1].length;
+                const title = hMatch[2].trim();
+
+                if (level === 1) {
+                    // 分页
+                    endChunk();
+                    slide = { title: title, blocks: [] };
+                    slides.push(slide);
+                    chunk = { level: 1, lines: [line] };
+                } else {
+                    // 断点
+                    endChunk();
+                    ensureSlide();
+                    chunk = { level: level, lines: [line] };
+                }
+                continue;
+            }
+
+            // —— 普通内容 ——
+            if (!chunk) {
+                ensureSlide();
+                chunk = { level: 0, lines: [] };
+            }
+            chunk.lines.push(line);
+        }
+
+        endChunk();
+
+        // 过滤掉完全空白的页
+        return slides.filter(function (s) { return s.blocks.length > 0; });
+    }
+
+    /* =========================================================
+       7. Mermaid 渲染
+       ========================================================= */
+    function renderMermaidIn(container) {
+        if (!window.mermaid) return;
+        const nodes = container.querySelectorAll('.mermaid');
+        if (!nodes.length) return;
+
+        const pending = [];
+        nodes.forEach(function (n) {
+            if (!n.getAttribute('data-processed')) pending.push(n);
+        });
+        if (!pending.length) return;
+
+        try {
+            const r = mermaid.run({ nodes: pending, suppressErrors: true });
+            if (r && typeof r.catch === 'function') r.catch(function () {});
+        } catch (e) {
+            console.warn('Mermaid 渲染失败:', e);
+        }
+    }
+
+    /* =========================================================
+       8. 渲染视图
+       ========================================================= */
+    function appendBlock(block, animate) {
+        const div = document.createElement('div');
+        div.className = 'slide-block' + (animate ? ' enter' : '');
+        div.innerHTML = renderMarkdown(block.content);
+        el.slide.appendChild(div);
+        renderMermaidIn(div);
+        // 通知插件：内容块已入 DOM（如数学动画在此初始化场景）
+        MPSPlugins.blockRendered(div);
+    }
+
+    // 强制整页重渲染（插件启停导致 fence 规则变化时使用）
+    function refreshAll() {
+        renderedSlideIndex = -1;
+        renderedStepIndex = -1;
+        renderCurrent();
+    }
+
+    function renderCurrent() {
+        if (!deck.length) {
+            el.slide.innerHTML =
+                '<div class="empty-state">' +
+                '还没有内容<br>点击右上角「✎ 编辑」粘贴你的 Markdown 文档' +
+                '</div>';
+            renderedSlideIndex = -1;
+            renderedStepIndex = -1;
+            updateHud();
+            return;
+        }
+
+        if (slideIndex >= deck.length) slideIndex = deck.length - 1;
+        if (slideIndex < 0) slideIndex = 0;
+
+        const curSlide = deck[slideIndex];
+        if (stepIndex >= curSlide.blocks.length) stepIndex = curSlide.blocks.length - 1;
+        if (stepIndex < 0) stepIndex = 0;
+
+        if (slideIndex !== renderedSlideIndex) {
+            // 整页重建
+            el.slide.innerHTML = '';
+            el.slide.scrollTop = 0;
+            renderedSlideIndex = slideIndex;
+            renderedStepIndex = -1;
+
+            for (let i = 0; i <= stepIndex; i++) {
+                appendBlock(curSlide.blocks[i], true);
+            }
+            renderedStepIndex = stepIndex;
+        } else if (stepIndex > renderedStepIndex) {
+            // 追加新的块
+            for (let i = renderedStepIndex + 1; i <= stepIndex; i++) {
+                appendBlock(curSlide.blocks[i], true);
+            }
+            renderedStepIndex = stepIndex;
+            scrollSlideToBottom();
+        } else if (stepIndex < renderedStepIndex) {
+            // 回退：移除多余的块
+            while (el.slide.children.length > stepIndex + 1) {
+                el.slide.removeChild(el.slide.lastElementChild);
+            }
+            renderedStepIndex = stepIndex;
+        }
+
+        updateHud();
+    }
+
+    function scrollSlideToBottom() {
+        requestAnimationFrame(function () {
+            if (el.slide.scrollHeight > el.slide.clientHeight + 4) {
+                el.slide.scrollTo({
+                    top: el.slide.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    }
+
+    /* =========================================================
+       9. HUD 更新
+       ========================================================= */
+    function updateHud() {
+        if (!deck.length) {
+            el.pageInfo.textContent = '0 / 0';
+            el.stepInfo.textContent = '';
+            el.progressBar.style.width = '0%';
+            el.prevBtn.disabled = true;
+            el.nextBtn.disabled = true;
+            MPSPlugins.slideChanged();
+            return;
+        }
+
+        el.pageInfo.textContent = (slideIndex + 1) + ' / ' + deck.length;
+
+        const totalBlocks = deck[slideIndex].blocks.length;
+        el.stepInfo.textContent = totalBlocks > 1
+            ? (stepIndex + 1) + ' · ' + totalBlocks
+            : '';
+
+        // 进度
+        let before = 0;
+        for (let i = 0; i < slideIndex; i++) before += deck[i].blocks.length;
+        let total = 0;
+        for (let i = 0; i < deck.length; i++) total += deck[i].blocks.length;
+        const cur = before + stepIndex + 1;
+        el.progressBar.style.width = (total ? (cur / total * 100) : 0) + '%';
+
+        // 按钮状态
+        const atStart = (slideIndex === 0 && stepIndex === 0);
+        const atEnd = (slideIndex === deck.length - 1 &&
+                       stepIndex === deck[slideIndex].blocks.length - 1);
+        el.prevBtn.disabled = atStart;
+        el.nextBtn.disabled = atEnd;
+        // 通知插件：页 / 断点位置已变化（宿主内部会按位置去重）
+        MPSPlugins.slideChanged();
+    }
+
+    /* =========================================================
+       10. 导航
+       ========================================================= */
+    function next() {
+        if (!deck.length) return;
+        const curSlide = deck[slideIndex];
+
+        if (stepIndex < curSlide.blocks.length - 1) {
+            stepIndex++;
+            renderCurrent();
+        } else if (slideIndex < deck.length - 1) {
+            slideIndex++;
+            stepIndex = 0;
+            renderCurrent();
+        } else {
+            pulseStage();
+        }
+    }
+
+    function prev() {
+        if (!deck.length) return;
+
+        if (stepIndex > 0) {
+            stepIndex--;
+            renderCurrent();
+        } else if (slideIndex > 0) {
+            slideIndex--;
+            stepIndex = deck[slideIndex].blocks.length - 1;
+            renderCurrent();
+        }
+    }
+
+    // 跳到指定页的指定断点（st 省略时落在该页最后一块）；供插件经 ctx.nav.goto() 调用
+    function gotoSlide(s, st) {
+        if (!deck.length) return;
+        s = Math.max(0, Math.min(deck.length - 1, Math.floor(Number(s)) || 0));
+        const n = deck[s].blocks.length;
+        slideIndex = s;
+        stepIndex = (st == null)
+            ? n - 1
+            : Math.max(0, Math.min(n - 1, Math.floor(Number(st)) || 0));
+        renderCurrent();
+    }
+
+    function pulseStage() {
+        el.stage.classList.remove('pulse');
+        // 触发重排以重启动画
+        void el.stage.offsetWidth;
+        el.stage.classList.add('pulse');
+        setTimeout(function () { el.stage.classList.remove('pulse'); }, 420);
+    }
+
+    /* =========================================================
+       11. 尺寸自适应
+       ========================================================= */
+    function fitStage() {
+        const rect = el.stageWrap.getBoundingClientRect();
+        const availW = Math.max(0, rect.width - 32);
+        const availH = Math.max(0, rect.height - 32);
+        const ratio = 16 / 9;
+
+        let w = availW;
+        let h = w / ratio;
+        if (h > availH) {
+            h = availH;
+            w = h * ratio;
+        }
+
+        w = Math.max(280, Math.floor(w));
+        h = Math.max(158, Math.floor(h));
+
+        el.stage.style.width = w + 'px';
+        el.stage.style.height = h + 'px';
+
+        // 根据舞台宽度动态设定字号
+        const fontSize = Math.max(11, Math.min(27, w / 62));
+        el.slide.style.fontSize = fontSize.toFixed(2) + 'px';
+    }
+
+    /* =========================================================
+       12. 主题
+       ========================================================= */
+    function setTheme(dark) {
+        isDark = dark;
+        document.body.classList.toggle('dark-mode', dark);
+        el.themeBtn.textContent = dark ? '☀️' : '🌙';
+
+        if (window.mermaid) {
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: dark ? 'dark' : 'default',
+                    securityLevel: 'loose',
+                    flowchart: { useMaxWidth: true },
+                    sequence: { useMaxWidth: true }
+                });
+            } catch (e) { /* ignore */ }
+        }
+
+        // 强制重绘（Mermaid 需要重新渲染）
+        renderedSlideIndex = -1;
+        renderedStepIndex = -1;
+        renderCurrent();
+    }
+
+    /* =========================================================
+       13. 抽屉
+       ========================================================= */
+    function openDrawer() {
+        el.drawer.classList.add('open');
+        el.overlay.classList.add('show');
+        setTimeout(function () { el.sourceInput.focus(); }, 260);
+    }
+
+    function closeDrawer() {
+        el.drawer.classList.remove('open');
+        el.overlay.classList.remove('show');
+    }
+
+    function applySource() {
+        const text = el.sourceInput.value;
+        deckSource = text;
+        deck = parseDeck(text);
+        slideIndex = 0;
+        stepIndex = 0;
+        renderedSlideIndex = -1;
+        renderedStepIndex = -1;
+        el.slide.innerHTML = '';
+        closeDrawer();
+        fitStage();
+        renderCurrent();
+    }
+
+    /* =========================================================
+       14. 示例文档
+       ========================================================= */
+    const SAMPLE = [
+        '# 欢迎使用 MPS·幻灯片',
+        '',
+        '一个由 **Markdown 文档驱动** 的演示引擎。',
+        '',
+        '## 分页规则',
+        '',
+        '- `#` 一级标题 → 开启**新的一页**',
+        '- `##` 及更深层级标题 → 当前页的**断点**',
+        '',
+        '### 点击推进',
+        '',
+        '每点击一次，就显示下一个断点。',
+        '',
+        '## 完全兼容 Markdown',
+        '',
+        '支持 **粗体**、*斜体*、~~删除线~~、==高亮==、`行内代码`。',
+        '',
+        '> 引用块也完全支持。',
+        '>',
+        '> > 嵌套引用同样没问题。',
+        '',
+        '# 公式与图表',
+        '',
+        '## LaTeX 公式',
+        '',
+        '行内公式 $E = mc^2$，以及块级公式：',
+        '',
+        '$$ \\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2} $$',
+        '',
+        '## 表格',
+        '',
+        '| 左对齐 | 居中 | 右对齐 |',
+        '| :--- | :---: | ---: |',
+        '| Alpha | Beta | 100 |',
+        '| Gamma | Delta | 200 |',
+        '',
+        '## 任务列表',
+        '',
+        '- [x] 已完成任务',
+        '- [ ] 待完成任务',
+        '- [ ] 另一个待办',
+        '',
+        '## 流程图',
+        '',
+        '```mermaid',
+        'graph TD',
+        '    A[开始] --> B{判断}',
+        '    B -->|是| C[执行]',
+        '    B -->|否| D[结束]',
+        '```',
+        '',
+        '## 时序图',
+        '',
+        '```mermaid',
+        'sequenceDiagram',
+        '    张三->>李四: 你好！',
+        '    李四-->>张三: 很好，谢谢！',
+        '```',
+        '',
+        '## 代码块',
+        '',
+        '```js',
+        'function hello(name) {',
+        '  return "Hello, " + name;',
+        '}',
+        '```',
+        '',
+        '# 数学动画',
+        '',
+        '## Manim 场景',
+        '',
+        '写 ```` ```manim ```` 代码块，即可在幻灯片中播放浏览器端数学动画：',
+        '',
+        '```manim',
+        'axes -4 4 -2 2.4',
+        'grid',
+        'plot f "sin(x)" -4 4 color=#58a6ff',
+        'math lb "y=\\sin(x)" at -2.2 1.85',
+        'dot d at 0 0 color=#f78166 r=0.09',
+        'line l 1.57 0 1.57 1 color=#8b949e',
+        'play create f run=1.6',
+        'play write lb run=0.8',
+        'play fadein d run=0.5',
+        'play MoveAlongPath d f 0 1.57 run=1.6 rate=linear',
+        'play create l run=0.3',
+        'wait 0.3',
+        'play indicate lb run=0.9',
+        '```',
+        '',
+        '## 几何变换',
+        '',
+        '```manim',
+        'math title "圆的面积" at 0 2.4',
+        'rect r -1 -1 2 2 color=#3fb950 fill=#3fb950',
+        'circle c 0 0 1 color=#58a6ff',
+        'play write title run=0.8',
+        'play create r run=1',
+        'play transform r -> c run=1.6',
+        'play indicate c run=0.9',
+        '```',
+        '',
+        '# 课堂测验',
+        '',
+        '## 测验卡片',
+        '',
+        '开启「课堂测验」插件后，```` ```quiz ```` 代码块会变成可交互测验：',
+        '选完点「提交」再判定，并显示参考答案与解析；作答跨页累计。',
+        '',
+        '```quiz',
+        'title 随堂小测',
+        'q 计算 \\(\\frac{1}{2}+\\frac{1}{3}\\) 的结果。',
+        'type single',
+        'opt \\(\\frac{5}{6}\\) *',
+        'opt \\(\\frac{2}{5}\\)',
+        'opt \\(\\frac{1}{5}\\)',
+        'opt \\(\\frac{1}{6}\\)',
+        'explain 通分：\\(\\frac{3}{6}+\\frac{2}{6}=\\frac{5}{6}\\)。',
+        '',
+        'q 以下哪些数属于质数？',
+        'type multi',
+        'opt 2 *',
+        'opt 3 *',
+        'opt 4',
+        'opt 9',
+        'explain 质数只能被 1 和自身整除；4 和 9 都是合数。',
+        '',
+        'q 三角形内角和等于 180 度。',
+        'type judge',
+        'ans 对',
+        'explain 在欧氏几何中，三角形内角和恒为 180°。',
+        '',
+        'q 水的化学式是 ____，一个水分子由两个 ____ 组成。',
+        'type fill',
+        'ans H2O | H₂O ; 氢原子 | 氢 | H',
+        'explain 每个水分子由 2 个氢原子和 1 个氧原子构成。',
+        '```',
+        '',
+        '## 全卷成绩单',
+        '',
+        '```quiz-summary',
+        'title 本卷成绩',
+        '```',
+        '',
+        '# 结束',
+        '',
+        '## 谢谢观看',
+        '',
+        '点击右上角「✎ 编辑」可以随时修改这份文档。'
+    ].join('\n');
+
+    /* =========================================================
+       15. 事件绑定
+       ========================================================= */
+    el.nextBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        next();
+    });
+
+    el.prevBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        prev();
+    });
+
+    el.stage.addEventListener('click', function (e) {
+        // 允许点击链接
+        if (e.target.closest('a')) return;
+        // 插件内容块（如动画播放器）内部交互不推进
+        if (e.target.closest('[data-mps-plugin]')) return;
+        // 有选中文本时不推进
+        const sel = window.getSelection && window.getSelection().toString();
+        if (sel) return;
+        next();
+    });
+
+    el.editBtn.addEventListener('click', openDrawer);
+    el.closeDrawerBtn.addEventListener('click', closeDrawer);
+    el.overlay.addEventListener('click', closeDrawer);
+    el.applyBtn.addEventListener('click', applySource);
+
+    el.sampleBtn.addEventListener('click', function () {
+        el.sourceInput.value = SAMPLE;
+        el.sourceInput.focus();
+    });
+
+    el.clearBtn.addEventListener('click', function () {
+        el.sourceInput.value = '';
+        el.sourceInput.focus();
+    });
+
+    el.themeBtn.addEventListener('click', function () {
+        setTheme(!isDark);
+    });
+
+    el.fullscreenBtn.addEventListener('click', function () {
+        if (!document.fullscreenElement) {
+            const p = document.documentElement.requestFullscreen();
+            if (p && p.catch) p.catch(function () {});
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    document.addEventListener('fullscreenchange', function () {
+        setTimeout(fitStage, 120);
+    });
+
+    // —— 键盘 ——
+    document.addEventListener('keydown', function (e) {
+        // 抽屉打开且焦点在输入框
+        if (e.target === el.sourceInput) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                applySource();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeDrawer();
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowRight':
+            case 'ArrowDown':
+            case ' ':
+            case 'PageDown':
+            case 'Enter':
+                e.preventDefault();
+                next();
+                break;
+            case 'ArrowLeft':
+            case 'ArrowUp':
+            case 'PageUp':
+            case 'Backspace':
+                e.preventDefault();
+                prev();
+                break;
+            case 'Home':
+                e.preventDefault();
+                if (deck.length) {
+                    slideIndex = 0;
+                    stepIndex = 0;
+                    renderCurrent();
+                }
+                break;
+            case 'End':
+                e.preventDefault();
+                if (deck.length) {
+                    slideIndex = deck.length - 1;
+                    stepIndex = deck[slideIndex].blocks.length - 1;
+                    renderCurrent();
+                }
+                break;
+            case 'f':
+            case 'F':
+                e.preventDefault();
+                el.fullscreenBtn.click();
+                break;
+            case 'e':
+            case 'E':
+                e.preventDefault();
+                if (el.drawer.classList.contains('open')) closeDrawer();
+                else openDrawer();
+                break;
+            case 'Escape':
+                closeDrawer();
+                break;
+        }
+    });
+
+    // —— 窗口尺寸 ——
+    let resizeTimer = null;
+    window.addEventListener('resize', function () {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(fitStage, 80);
+    });
+
+    /* =========================================================
+       16. 启动
+       ========================================================= */
+    function boot() {
+        // Mermaid 初始化
+        if (window.mermaid) {
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose',
+                    flowchart: { useMaxWidth: true },
+                    sequence: { useMaxWidth: true },
+                    gantt: { useMaxWidth: true }
+                });
+            } catch (e) { /* ignore */ }
+        }
+
+        // 载入示例
+        el.sourceInput.value = SAMPLE;
+        deckSource = SAMPLE;
+        deck = parseDeck(SAMPLE);
+        slideIndex = 0;
+        stepIndex = 0;
+
+        fitStage();
+        renderCurrent();
+
+        // 扫描 plugs/ 并安装启用的插件；装好后重渲染一次，让插件围栏生效
+        MPSPlugins.on('pluginsReady', function () { refreshAll(); });
+        MPSPlugins.boot({ auto: true });
+
+        // 首次布局完成后再校正一次字号
+        setTimeout(fitStage, 60);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+
+    console.log('MPS·幻灯片 已启动 — # 分页，## 及更深层级为断点。');
+})();
+</script>
+
+</body>
+</html>

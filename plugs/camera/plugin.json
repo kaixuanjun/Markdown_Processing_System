@@ -1,0 +1,13 @@
+{
+  "id": "camera",
+  "name": "摄像头画面",
+  "description": "在幻灯片里叠加摄像头画面：拖动移动、拖边缘缩放，悬停工具条可切换 8 种遮罩形状（圆形 / 椭圆 / 六边形 / 星形…）、镜像与多个摄像头。",
+  "version": "1.0.0",
+  "author": "MPS",
+  "icon": "📷",
+  "entry": "index.js",
+  "runtime": ["mps-camera.js"],
+  "files": ["plugin.json", "index.js", "mps-camera.js"],
+  "defaultEnabled": false,
+  "tabs": ["摄像头"]
+}

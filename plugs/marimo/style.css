@@ -1,0 +1,103 @@
+/* ==========================================================================
+   MPS 插件 · Python 笔记本（marimo 风格）
+   颜色全部走宿主 CSS 变量，浅色 / 深色主题自动适配
+   ========================================================================== */
+
+.mrm {
+    margin: .9em 0;
+    border: 1px solid var(--border-color, #d0d7de);
+    border-radius: 10px;
+    background: var(--bg-panel, #fff);
+    overflow: hidden;
+    text-align: left;
+}
+
+/* —— 顶栏 —— */
+.mrm-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    background: var(--code-bg, #f6f8fa);
+    border-bottom: 1px solid var(--border-color, #d0d7de);
+}
+.mrm-name { font-size: 12px; font-weight: 700; letter-spacing: .2px; color: var(--text-primary, #24292f); }
+.mrm-state { flex: 1; min-width: 0; font-size: 11px; color: var(--text-muted, #8b949e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mrm-state.mrm-ok { color: #1a7f37; }
+.mrm-state.mrm-err { color: #d1242f; }
+.mrm-btn {
+    flex: 0 0 auto; height: 24px; padding: 0 10px;
+    font-family: inherit; font-size: 11px; cursor: pointer;
+    color: var(--text-primary, #24292f);
+    background: var(--bg-panel, #fff);
+    border: 1px solid var(--border-color, #d0d7de);
+    border-radius: 6px; transition: all .15s;
+}
+.mrm-btn:hover { background: var(--hover-bg, #f3f4f6); border-color: var(--text-muted, #8b949e); }
+
+/* —— 单元格 —— */
+.mrm-cell { display: flex; border-top: 1px solid var(--border-color, #d0d7de); }
+.mrm-cell:first-child { border-top: 0; }
+.mrm-gutter {
+    flex: 0 0 auto; width: 30px; padding: 8px 0;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    background: var(--code-bg, #f6f8fa);
+    border-right: 1px solid var(--border-color, #d0d7de);
+    cursor: pointer;
+}
+.mrm-idx { font-family: Consolas, Menlo, monospace; font-size: 10px; color: var(--text-muted, #8b949e); }
+.mrm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-color, #d0d7de); }
+.mrm-cell.ok .mrm-dot { background: #1a7f37; }
+.mrm-cell.err .mrm-dot { background: #d1242f; }
+.mrm-cell.skip .mrm-dot { background: #bf8700; opacity: .6; }
+.mrm-cell.run .mrm-dot { background: #bf8700; animation: mrmPulse .9s ease-in-out infinite; }
+@keyframes mrmPulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+.mrm-body { flex: 1; min-width: 0; }
+.mrm-code {
+    display: block; width: 100%; box-sizing: border-box;
+    border: 0; outline: 0; resize: none; background: transparent;
+    padding: 8px 10px;
+    font-family: Consolas, Menlo, "Courier New", monospace;
+    font-size: 12px; line-height: 1.55; tab-size: 4;
+    color: var(--text-primary, #24292f);
+    overflow: hidden;
+}
+.mrm-cell.run .mrm-code { background: rgba(191, 135, 0, .06); }
+
+/* —— 底部：现场新增单元格 —— */
+.mrm-foot {
+    display: flex; justify-content: center;
+    padding: 7px 10px;
+    background: var(--code-bg, #f6f8fa);
+    border-top: 1px solid var(--border-color, #d0d7de);
+}
+.mrm-add {
+    height: 26px; padding: 0 14px;
+    font-family: inherit; font-size: 11.5px; cursor: pointer;
+    color: var(--text-secondary, #57606a);
+    background: var(--bg-panel, #fff);
+    border: 1px dashed var(--border-color, #d0d7de);
+    border-radius: 6px; transition: all .15s;
+}
+.mrm-add:hover {
+    color: var(--accent, #0969da);
+    border-color: var(--accent, #0969da);
+    border-style: solid;
+    background: var(--accent-soft, #ddf4ff);
+}
+
+/* —— 输出 —— */
+.mrm-out { padding: 6px 10px; border-top: 1px dashed var(--border-color, #d0d7de); }
+.mrm-out:empty { display: none; }
+.mrm-out.mrm-err { background: rgba(209, 36, 47, .06); }
+.mrm-pre {
+    margin: 0; font-family: Consolas, Menlo, "Courier New", monospace;
+    font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+    color: var(--text-secondary, #57606a);
+}
+.mrm-out.mrm-err .mrm-pre { color: #d1242f; }
+.mrm-pre.mrm-warn { color: #bf8700; }
+.mrm-repr { font-family: Consolas, Menlo, monospace; font-size: 11.5px; color: var(--accent, #0969da); }
+.mrm-empty { font-size: 11px; color: var(--text-muted, #8b949e); }
+.mrm-html { font-size: 12px; line-height: 1.6; color: var(--text-primary, #24292f); overflow-x: auto; }
+.mrm-html table { border-collapse: collapse; font-size: 12px; }
+.mrm-html td, .mrm-html th { border: 1px solid var(--border-color, #d0d7de); padding: 2px 8px; }

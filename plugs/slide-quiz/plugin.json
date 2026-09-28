@@ -1,0 +1,30 @@
+{
+  "id": "slide-quiz",
+  "name": "课堂测验",
+  "description": "```quiz 代码块 → 可交互测验（单选/多选/判断/填空，提交判定、跨页累计计分、全卷成绩单）；```poll → 现场投票卡：题目 + 二维码，手机扫码即投，票数与词云实时刷新。免配置可用（公共通道 + 自动房间），也可在 ```poll-config 里换成自己的 HiveMQ 集群。",
+  "version": "1.3.0",
+  "author": "MPS",
+  "icon": "📝",
+  "entry": "index.js",
+  "runtime": ["qrcode.js", "mqtt.min.js", "mps-quiz.js", "mps-poll.js"],
+  "files": [
+    "plugin.json",
+    "index.js",
+    "mps-quiz.js",
+    "mps-poll.js",
+    "vote.html",
+    "qrcode.js",
+    "mqtt.min.js",
+    "server/启动课堂投票（局域网）.bat",
+    "server/start-vote.ps1",
+    "server/start-vote-server.sh",
+    "server/serve.js"
+  ],
+  "packShortcuts": [
+    { "name": "启动课堂投票（局域网）.bat", "kind": "bat", "target": "server/start-vote.ps1" },
+    { "name": "start-vote-server.sh", "kind": "sh", "target": "server/start-vote-server.sh" }
+  ],
+  "defaultEnabled": false,
+  "defaultVoteUrl": "",
+  "tabs": ["课堂测验"]
+}

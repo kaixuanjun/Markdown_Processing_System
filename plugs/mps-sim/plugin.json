@@ -1,0 +1,13 @@
+{
+  "id": "mps-sim",
+  "name": "互动模拟",
+  "description": "把幻灯片变成可现场操控的动态模拟（参考 Nano Interactive Slides）。```sim → 实时滑块调参 + 开始/暂停/重置 + 投影读数 + 快照对比 + 导出 PNG/JSON，内置 9 个模型（弹簧振子/单摆/抛体/SIR/种群/捕食/洛伦兹/RC/波的叠加）也支持自定义方程；```sim-link → 链接序列（指定下一站、按秒或按模拟结束自动前进、首次访问继承参数）；```nano → 纳米绘图（风格/种子/提示词，可接入 window.MPSNano.generateImage，未接入时用内置确定性生成器）。",
+  "version": "1.0.0",
+  "author": "MPS",
+  "icon": "🎛️",
+  "entry": "index.js",
+  "runtime": ["mps-sim.js", "mps-nano.js"],
+  "files": ["plugin.json", "index.js", "mps-sim.js", "mps-nano.js"],
+  "defaultEnabled": false,
+  "tabs": ["互动模拟"]
+}

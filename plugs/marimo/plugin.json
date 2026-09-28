@@ -1,0 +1,25 @@
+{
+  "id": "marimo",
+  "name": "Python 笔记本",
+  "description": "把 ```marimo 代码块渲染成 marimo 风格的反应式 Python 笔记本：单元格按依赖顺序自动运行与重算。Python 由随插件内置的 Pyodide(WASM) 在本地执行，完全离线，不联网。",
+  "version": "1.0.0",
+  "author": "MPS",
+  "icon": "🐍",
+  "entry": "index.js",
+  "runtime": ["runtime.js"],
+  "styles": ["style.css"],
+  "preload": ["pyodide/pyodide.asm.js"],
+  "files": [
+    "plugin.json",
+    "index.js",
+    "runtime.js",
+    "style.css",
+    "pyodide/pyodide.js",
+    "pyodide/pyodide.asm.js",
+    "pyodide/pyodide.asm.wasm.gz",
+    "pyodide/python_stdlib.zip",
+    "pyodide/pyodide-lock.json"
+  ],
+  "defaultEnabled": false,
+  "tabs": ["Python 笔记本"]
+}

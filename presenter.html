@@ -1,0 +1,2418 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MPS·演示 - Markdown 驱动的可视化演示</title>
+
+<!-- 第三方库 -->
+<script src="./lib/markdown-it.min.js"></script>
+<script src="./lib/markdown-it-sub.min.js"></script>
+<script src="./lib/markdown-it-sup.min.js"></script>
+<script src="./lib/markdown-it-mark.min.js"></script>
+<script src="./lib/markdown-it-multimd-table.min.js"></script>
+<!-- KaTeX -->
+<link rel="stylesheet" href="./lib/katex.min.css">
+<script src="./lib/katex.min.js"></script>
+<!-- Mermaid -->
+<script src="./lib/mermaid.min.js"></script>
+<!-- 插件宿主：扫描 plugs/ 并安装启用的插件（数学动画等） -->
+<script src="./lib/mps-plugins.js"></script>
+
+<style>
+/* ===== CSS 变量：浅色/深色主题 ===== */
+:root {
+    --bg-body: #f0f2f5;
+    --bg-header: #ffffff;
+    --bg-toolbar: #ffffff;
+    --bg-tab: #fafbfc;
+    --bg-panel: #ffffff;
+    --bg-editor: #ffffff;
+    --bg-slide: #ffffff;
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --text-muted: #8b949e;
+    --border-color: #d0d7de;
+    --border-light: #e1e4e8;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --stage-shadow: 0 14px 50px rgba(15, 23, 42, .16);
+    --hover-bg: #f3f4f6;
+    --active-bg: #ddf4ff;
+    --active-color: #0969da;
+    --code-bg: #f6f8fa;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --table-border: #8b949e;
+    --resizer-color: #d0d7de;
+    --resizer-active: #0969da;
+}
+
+body.dark-mode {
+    --bg-body: #1c1e21;
+    --bg-header: #2d2f33;
+    --bg-toolbar: #2d2f33;
+    --bg-tab: #222426;
+    --bg-panel: #2d2f33;
+    --bg-editor: #1e1f22;
+    --bg-slide: #1c1f23;
+    --text-primary: #e6e6e6;
+    --text-secondary: #b0b0b0;
+    --text-muted: #888888;
+    --border-color: #44474d;
+    --border-light: #3c3f44;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --stage-shadow: 0 14px 50px rgba(0, 0, 0, .65);
+    --hover-bg: #3c3f44;
+    --active-bg: #1f3a5f;
+    --active-color: #58a6ff;
+    --code-bg: #2d2f33;
+    --accent: #58a6ff;
+    --accent-soft: #1f3a5f;
+    --table-border: #888888;
+    --resizer-color: #44474d;
+    --resizer-active: #58a6ff;
+}
+
+/* ===== 全局 ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-body);
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+    transition: background 0.2s, color 0.2s;
+    color: var(--text-primary);
+}
+
+/* ===== 标题栏 ===== */
+.app-header {
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    height: 44px;
+    box-shadow: var(--shadow);
+    transition: background 0.2s, border-color 0.2s;
+}
+.app-header .logo {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), #3fb950);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+}
+.app-header .title {
+    font-size: 16px; font-weight: 600; color: var(--text-primary); letter-spacing: 0.3px;
+}
+.app-header .title .accent { color: var(--accent); }
+.app-header .version { font-size: 11px; color: var(--text-muted); margin-left: 3px; font-weight: 400; }
+.app-header .spacer { flex: 1; }
+.app-header .header-status {
+    font-size: 11px; color: var(--text-secondary);
+    background: var(--bg-tab); padding: 2px 10px; border-radius: 12px; display: none;
+}
+
+/* ===== Ribbon 工具栏（Windows 11 圆角风格） ===== */
+.ribbon {
+    background: var(--bg-toolbar);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+    transition: background 0.2s, border-color 0.2s;
+}
+.ribbon-tabs {
+    display: flex;
+    padding: 6px 10px 8px;
+    gap: 4px;
+    background: var(--bg-tab);
+    border-bottom: 1px solid var(--border-light);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    transition: background 0.2s, border-color 0.2s;
+}
+.ribbon-tabs button {
+    background: transparent; border: none;
+    padding: 6px 15px; font-size: 13px; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    border-radius: 7px;
+    transition: all 0.15s;
+    white-space: nowrap; font-family: inherit;
+    height: 32px; display: flex; align-items: center;
+}
+.ribbon-tabs button:hover { background: var(--hover-bg); }
+.ribbon-tabs button.active { color: var(--active-color); background: var(--active-bg); font-weight: 600; }
+.ribbon-panels {
+    padding: 6px 12px; min-height: 56px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
+    background: var(--bg-panel);
+    transition: background 0.2s;
+    max-height: calc(100vh - 200px); overflow-y: auto;
+}
+.ribbon-panel { display: none; width: 100%; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ribbon-panel.active { display: flex; }
+
+.ribbon-panel button, .ribbon-panel select {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 12px; font-size: 14px; cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap; font-family: inherit;
+    height: 36px; min-width: 44px; justify-content: center;
+}
+.ribbon-panel button:hover, .ribbon-panel select:hover {
+    background: var(--hover-bg); border-color: var(--text-muted);
+}
+.ribbon-panel button:active, .ribbon-panel select:active { background: var(--border-light); }
+.ribbon-panel button.active { background: var(--active-bg); border-color: var(--active-color); color: var(--active-color); }
+.ribbon-panel button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ribbon-panel button.primary:hover { opacity: .88; background: var(--accent); }
+.ribbon-panel select { padding: 4px 24px 4px 10px; appearance: auto; min-width: 70px; }
+.ribbon-panel .icon { font-size: 18px; line-height: 1; }
+.ribbon-panel .label { font-size: 13px; font-weight: 500; }
+.ribbon-panel .group-label { font-size: 12px; color: var(--text-muted); margin-right: 4px; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap; }
+.ribbon-panel .divider { width: 1px; height: 28px; background: var(--border-color); margin: 0 4px; }
+.ribbon-panel .hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.ribbon-panel input[type="text"] {
+    height: 36px; padding: 0 10px; border: 1px solid var(--border-color);
+    border-radius: 6px; background: var(--bg-panel); color: var(--text-primary);
+    font-size: 13px; min-width: 150px; font-family: inherit;
+    transition: border-color 0.15s;
+}
+.ribbon-panel input[type="text"]:focus { outline: none; border-color: var(--active-color); }
+.ribbon-panel button:disabled { opacity: .4; cursor: not-allowed; }
+/* —— 插件管理面板：紧凑的可翻转卡片（正面：图标 + 名称 + 开关；背面：简介） —— */
+.plugin-card {
+    position: relative; flex: 0 0 auto;
+    width: 196px; height: 92px;
+    perspective: 700px; cursor: pointer;
+}
+.plugin-card .pc-inner {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+.plugin-card.flipped .pc-inner { transform: rotateY(180deg); }
+.plugin-card .pc-face {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    display: flex; overflow: hidden;
+    border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-panel);
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.plugin-card.on .pc-face { border-color: var(--active-color); }
+.plugin-card .pc-front { align-items: stretch; gap: 0; padding: 0; }
+.plugin-card .pc-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 8px 10px; }
+.plugin-card .pc-icon { flex: 0 0 auto; font-size: 20px; line-height: 1; }
+.plugin-card .pc-name {
+    flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.3;
+    color: var(--text-primary);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.plugin-card.on .pc-name { color: var(--active-color); }
+.plugin-card .pc-back {
+    flex-direction: column; justify-content: center; gap: 2px;
+    padding: 8px 10px; transform: rotateY(180deg);
+}
+.plugin-card .pc-desc {
+    font-size: 10.5px; line-height: 1.4; color: var(--text-secondary);
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.plugin-card .pc-meta {
+    font-size: 10px; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* 开关：与卡片等高的大方块（开启 = 蓝色 √，关闭 = 灰色 ×） */
+.plugin-card .pc-block {
+    flex: 0 0 auto; width: 46px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--border-color); color: #fff;
+    font-size: 26px; line-height: 1; font-weight: 700;
+    user-select: none; transition: background 0.2s;
+}
+.plugin-card.on .pc-block { background: var(--active-color); }
+.plugin-card .pc-block:hover { filter: brightness(0.94); }
+.plugin-card .pc-block.pending { opacity: 0.45; }
+/* —— 通用确认弹窗：与页面 UI 统一（替代浏览器原生 confirm） —— */
+.mps-modal {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.mps-modal[hidden] { display: none; }
+.mps-modal .mps-modal-mask { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0, 0, 0, .45); }
+.mps-modal .mps-modal-box {
+    position: relative; width: min(430px, calc(100vw - 40px));
+    background: var(--bg-panel); border: 1px solid var(--border-color);
+    border-radius: 12px; box-shadow: 0 12px 36px rgba(0, 0, 0, .28);
+    overflow: hidden; animation: mpsModalIn .16s ease-out;
+}
+@keyframes mpsModalIn {
+    from { opacity: 0; transform: translateY(-10px) scale(.98); }
+    to { opacity: 1; transform: none; }
+}
+.mps-modal .mps-modal-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 15px 18px 0; font-size: 15px; font-weight: 600; color: var(--text-primary);
+}
+.mps-modal .mps-modal-head .icon { font-size: 17px; line-height: 1; }
+.mps-modal .mps-modal-body {
+    padding: 10px 18px 18px; font-size: 13px; line-height: 1.7;
+    color: var(--text-secondary); word-break: break-word;
+}
+.mps-modal .mps-modal-foot {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 18px; border-top: 1px solid var(--border-color); background: var(--bg-body);
+}
+.mps-modal .mps-modal-foot button {
+    height: 34px; padding: 0 18px; border-radius: 6px; cursor: pointer;
+    font-family: inherit; font-size: 13px;
+    border: 1px solid var(--border-color); background: var(--bg-panel); color: var(--text-primary);
+    transition: all 0.15s;
+}
+.mps-modal .mps-modal-foot button:hover { background: var(--hover-bg); border-color: var(--text-muted); }
+.mps-modal .mps-modal-foot button:focus-visible { outline: 2px solid var(--active-color); outline-offset: 1px; }
+.mps-modal .mps-modal-foot button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mps-modal .mps-modal-foot button.primary:hover { opacity: .88; background: var(--accent); }
+.ctrl-zone { display: flex; flex-direction: column; gap: 4px; width: 100%; margin-top: 4px; }
+.ctrl-devices { display: flex; flex-wrap: wrap; gap: 5px; min-height: 22px; }
+.ctrl-device {
+    font-size: 11px; padding: 2px 9px; border-radius: 11px;
+    border: 1px solid var(--border-color); color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; background: var(--bg-panel);
+}
+.ctrl-device.online { color: var(--active-color); border-color: var(--active-color); }
+.ctrl-device b { color: var(--text-primary); font-weight: 600; }
+.ctrl-log {
+    font-size: 11px; font-family: Consolas, Menlo, monospace; line-height: 1.6;
+    color: var(--text-muted); max-height: 88px; overflow-y: auto;
+    border-top: 1px dashed var(--border-color); padding-top: 4px; white-space: pre-wrap;
+}
+
+/* ===== 主体 ===== */
+.main {
+    flex: 1; min-height: 0; display: flex;
+    overflow: hidden; background: var(--bg-body);
+    padding: 6px; gap: 0;
+    transition: background 0.2s, flex-direction 0.2s;
+}
+.editor-panel {
+    flex: 1 1 40%; min-height: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg-editor);
+    border-radius: 8px; box-shadow: var(--shadow);
+    overflow: hidden; position: relative;
+    transition: background 0.2s;
+}
+.stage-panel {
+    flex: 1 1 60%; min-height: 0;
+    display: flex; flex-direction: column;
+    border-radius: 8px; box-shadow: var(--shadow);
+    overflow: hidden; background: var(--bg-panel);
+    transition: background 0.2s;
+}
+.editor-panel.hidden-panel, .stage-panel.hidden-panel, .resizer.hidden-panel { display: none; }
+.ribbon.hidden-panel { display: none; }
+
+.resizer {
+    flex-shrink: 0; width: 8px; background: transparent;
+    cursor: col-resize; display: flex; align-items: center; justify-content: center;
+    position: relative; transition: background 0.2s;
+    margin: 0 2px;
+}
+.resizer:hover, .resizer.active { background: var(--resizer-color); }
+.resizer::after {
+    content: ''; display: block; width: 3px; height: 30px;
+    background: var(--text-muted); border-radius: 2px; opacity: .5;
+    transition: opacity 0.2s;
+}
+.resizer:hover::after, .resizer.active::after { opacity: 1; background: var(--resizer-active); }
+
+/* 面板头部 */
+.editor-panel .panel-header, .stage-panel .panel-header {
+    padding: 6px 12px; background: var(--bg-tab);
+    border-bottom: 1px solid var(--border-light);
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0; height: 32px;
+    transition: background 0.2s, border-color 0.2s;
+}
+.editor-panel textarea {
+    flex: 1; min-height: 0; border: none;
+    padding: 12px 14px; font-size: 14px; line-height: 1.7;
+    font-family: 'Consolas', 'Courier New', monospace;
+    resize: none; outline: none;
+    background: var(--bg-editor); color: var(--text-primary);
+    tab-size: 4;
+    transition: background 0.2s, color 0.2s;
+    user-select: text;
+}
+
+/* ---- 舞台 ---- */
+.stage-wrap {
+    flex: 1; min-height: 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px; overflow: hidden;
+    transition: background 0.25s;
+}
+.stage {
+    position: relative;
+    background: var(--bg-slide);
+    border-radius: 12px;
+    box-shadow: var(--stage-shadow);
+    overflow: hidden; cursor: pointer;
+    transition: background 0.25s, box-shadow 0.25s;
+}
+.stage.pulse { animation: stagePulse .4s ease; }
+@keyframes stagePulse {
+    0%   { box-shadow: var(--stage-shadow), 0 0 0 0 rgba(9,105,218,.5); }
+    100% { box-shadow: var(--stage-shadow), 0 0 0 18px rgba(9,105,218,0); }
+}
+.slide {
+    position: absolute; inset: 0;
+    padding: 1.6em 2em; overflow-y: auto; overflow-x: hidden;
+    line-height: 1.65;
+    scrollbar-width: thin; scrollbar-color: var(--border-color) transparent;
+}
+.slide::-webkit-scrollbar { width: 8px; }
+.slide::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+.slide-block + .slide-block { margin-top: .9em; }
+.slide-block.enter { animation: blockIn .42s cubic-bezier(.22,.85,.3,1) both; }
+@keyframes blockIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.empty-state {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 15px; text-align: center;
+    padding: 2em; line-height: 1.8;
+}
+
+/* ---- 舞台内 Markdown 样式 ---- */
+.slide h1 { font-size: 2.1em; font-weight: 700; line-height: 1.25; margin: 0 0 .65em; padding-bottom: .18em; border-bottom: 3px solid var(--accent); display: inline-block; letter-spacing: -.01em; }
+.slide h2 { font-size: 1.45em; font-weight: 650; line-height: 1.3; margin: 0 0 .55em; display: flex; align-items: center; gap: .5em; }
+.slide h2::before { content: ''; flex-shrink: 0; width: .18em; height: .95em; background: var(--accent); border-radius: 2px; }
+.slide h3 { font-size: 1.2em; font-weight: 600; margin: .15em 0 .45em; color: var(--text-primary); }
+.slide h4 { font-size: 1.08em; font-weight: 600; margin: .15em 0 .4em; color: var(--text-secondary); }
+.slide h5, .slide h6 { font-size: 1em; font-weight: 600; margin: .15em 0 .35em; color: var(--text-secondary); }
+.slide p { margin: .5em 0; }
+.slide strong { font-weight: 700; }
+.slide mark { background: #fff3b0; color: inherit; padding: 0 .18em; border-radius: 3px; }
+body.dark-mode .slide mark { background: #6b5b1a; }
+.slide ul, .slide ol { padding-left: 1.5em; margin: .5em 0; }
+.slide li { margin: .22em 0; }
+.slide li::marker { color: var(--accent); }
+.slide ul ul, .slide ul ol, .slide ol ul, .slide ol ol { margin: .2em 0; padding-left: 1.5em; }
+.slide .task-list-item { list-style: none; margin-left: -1.45em; }
+.slide .task-list-item input[type="checkbox"] { margin-right: .5em; vertical-align: middle; accent-color: var(--accent); pointer-events: none; }
+.slide code { font-family: 'Consolas','Courier New',monospace; font-size: .88em; background: var(--code-bg); padding: .12em .4em; border-radius: 4px; border: 1px solid var(--border-light); }
+.slide pre { background: var(--code-bg); border: 1px solid var(--border-light); border-radius: 9px; padding: .85em 1.05em; overflow-x: auto; margin: .7em 0; }
+.slide pre code { background: none; border: none; padding: 0; font-size: .85em; line-height: 1.6; }
+.slide blockquote { border-left: .25em solid var(--accent); padding: .2em 0 .2em 1em; margin: .7em 0; color: var(--text-secondary); }
+.slide blockquote blockquote { margin-left: 1.2em; border-left-color: var(--text-muted); }
+.slide table { border-collapse: collapse; margin: .75em 0; font-size: .95em; }
+.slide th, .slide td { border: 2px solid var(--table-border); padding: .38em .9em; text-align: left; }
+.slide th { background: var(--code-bg); font-weight: 600; }
+.slide img { max-width: 100%; border-radius: 8px; }
+.slide hr { border: none; height: 1px; background: var(--border-color); margin: 1.1em 0; }
+.slide a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color .15s; }
+.slide a:hover { border-bottom-color: var(--accent); }
+.slide .katex-display { margin: .75em 0; overflow-x: auto; overflow-y: hidden; padding: .2em 0; }
+.slide .mermaid { text-align: center; margin: .8em 0; overflow-x: auto; }
+
+body.dark-mode .countdown-hello .mermaid svg { background: transparent; }
+body.dark-mode .slide .mermaid svg { background: transparent; }
+body.dark-mode .slide .mermaid .node rect,
+body.dark-mode .slide .mermaid .node circle,
+body.dark-mode .slide .mermaid .node ellipse,
+body.dark-mode .slide .mermaid .node polygon,
+body.dark-mode .slide .mermaid .node path { stroke: #aaa; stroke-width: 1.5px; }
+body.dark-mode .slide .mermaid .edgePath .path { stroke: #aaa !important; }
+body.dark-mode .slide .mermaid .cluster rect { stroke: #888 !important; }
+body.dark-mode .slide .mermaid .actor { stroke: #aaa !important; fill: #2d2f33 !important; }
+body.dark-mode .slide .mermaid .actor-line { stroke: #888 !important; }
+body.dark-mode .slide .mermaid .messageLine0,
+body.dark-mode .slide .mermaid .messageLine1 { stroke: #aaa !important; }
+body.dark-mode .slide .mermaid .loopLine { stroke: #888 !important; }
+body.dark-mode .slide .mermaid .task { stroke: #aaa !important; }
+body.dark-mode .slide .mermaid .grid .tick { stroke: #555 !important; }
+body.dark-mode .slide .mermaid .today { stroke: #f44 !important; }
+
+/* ---- 舞台工具条 ---- */
+.stage-toolbar {
+    flex-shrink: 0; height: 46px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    background: var(--bg-tab);
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.2s, border-color 0.2s;
+}
+.nav-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--border-color); background: var(--bg-panel);
+    color: var(--text-primary); font-size: 16px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .15s; user-select: none;
+}
+.nav-btn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+.nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+.page-info { font-size: 13px; font-weight: 600; min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+.step-info { font-size: 12px; color: var(--text-muted); min-width: 42px; font-variant-numeric: tabular-nums; }
+.progress-track { flex: 1; height: 4px; border-radius: 2px; background: var(--border-light); overflow: hidden; min-width: 40px; }
+.progress-bar { height: 100%; width: 0%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), #6cb6ff); transition: width .35s cubic-bezier(.3,.9,.3,1); }
+.toolbar-hint { font-size: 11px; color: var(--text-muted); }
+
+/* ---- 悬浮放映按钮（位于翻页按钮下方） ---- */
+.pres-btns {
+    position: absolute; left: 12px; bottom: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 20;
+}
+.pres-btn {
+    height: 40px; padding: 0 18px; border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-panel); color: var(--text-primary);
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+    backdrop-filter: blur(8px);
+    transition: all .15s; font-family: inherit; white-space: nowrap; user-select: none;
+}
+.pres-btn:hover { background: var(--active-bg); border-color: var(--active-color); color: var(--active-color); transform: translateY(-1px); }
+.pres-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pres-btn.primary:hover { opacity: .9; color: #fff; background: var(--accent); }
+.pres-btn.hidden { display: none; }
+
+/* ===== 状态栏 ===== */
+.statusbar {
+    flex-shrink: 0; height: 26px;
+    background: var(--bg-panel); border-top: 1px solid var(--border-color);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 12px; font-size: 12px;
+    color: var(--text-secondary);
+    transition: background 0.2s, border-color 0.2s;
+}
+.statusbar .right { display: flex; align-items: center; gap: 10px; }
+.statusbar code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border-light); font-family: 'Consolas', monospace; font-size: 11px; }
+
+/* 隐藏文件输入 */
+#fileInput { display: none; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 720px) {
+    .app-header { height: 40px; padding: 4px 10px; }
+    .app-header .version { display: none; }
+    .main { flex-direction: column; }
+    .editor-panel { flex: 1 1 45%; min-height: 30vh; }
+    .stage-panel { flex: 1 1 55%; min-height: 30vh; }
+    .resizer { width: 100%; height: 8px; cursor: row-resize; margin: 2px 0; }
+    .resizer::after { width: 30px; height: 3px; }
+    .ribbon-tabs button { padding: 4px 12px; font-size: 12px; height: 30px; }
+    .ribbon-panels { padding: 4px 8px; min-height: 48px; max-height: calc(100vh - 160px); }
+    .ribbon-panel button, .ribbon-panel select { padding: 4px 8px; font-size: 13px; height: 32px; min-width: 36px; }
+    .toolbar-hint { display: none; }
+    .stage-wrap { padding: 8px; }
+    .stage-toolbar { height: 42px; }
+}
+@media (max-width: 480px) {
+    .ribbon-tabs button { padding: 2px 8px; font-size: 11px; height: 26px; }
+    .ribbon-panel button, .ribbon-panel select { padding: 2px 6px; font-size: 12px; height: 28px; min-width: 30px; }
+    .ribbon-panel .label { font-size: 11px; }
+    .ribbon-panels { padding: 2px 4px; min-height: 40px; gap: 4px; }
+    .ribbon-panel { gap: 4px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 标题栏 ===== -->
+<header class="app-header">
+    <div class="logo">▶</div>
+    <div class="title">MPS<span class="accent">·</span>演示 <span class="version">v1.0</span></div>
+    <div class="spacer"></div>
+    <span class="header-status">● 就绪</span>
+</header>
+
+<!-- ===== Ribbon 工具栏 ===== -->
+<div class="ribbon" id="ribbon">
+    <div class="ribbon-tabs">
+        <button class="" data-tab="tab-file" data-order="10">文件</button>
+        <button data-tab="tab-insert" data-order="20" class="">插入</button>
+        <button data-tab="tab-view" data-order="30" class="">视图</button>
+        <button data-tab="tab-plugins" data-order="80" class="active" style="font-size: 13px; font-weight: normal;">插件管理</button>
+        <button data-tab="tab-control" data-order="90">控制</button>
+    </div>
+    <div class="ribbon-panels">
+        <!-- 文件 -->
+        <div class="ribbon-panel" id="tab-file">
+            <button class="primary" id="packageBtn" title="把当前 Markdown 打包成纯净演示 HTML"><span class="icon">📦</span><span class="label">打包演示</span></button>
+            <div class="divider"></div>
+            <button id="openFileBtn" title="打开 .md 文件"><span class="icon">📂</span><span class="label">打开</span></button>
+            <button id="loadExampleBtn" title="加载示例"><span class="icon">📋</span><span class="label">示例</span></button>
+            <button id="clearBtn" title="清空编辑区"><span class="icon">🗑</span><span class="label">清空</span></button>
+            <span class="hint">分页规则：<code>#</code> 一级标题 = 新页 · <code>##</code>~<code>######</code> = 断点</span>
+        </div>
+        <!-- 插入 -->
+        <div class="ribbon-panel" id="tab-insert">
+            <span class="group-label">分页</span>
+            <button id="pageBreakBtn" title="插入分页符（# 一级标题）"><span class="icon">#</span><span class="label">分页</span></button>
+            <span class="group-label">断点</span>
+            <button id="breakBtn" title="插入断点（## 二级标题）"><span class="icon">##</span><span class="label">断点</span></button>
+            <div class="divider"></div>
+            <span class="group-label">图表</span>
+            <button id="insertFlowBtn" title="流程图 Mermaid"><span class="icon">↗</span><span class="label">流程图</span></button>
+            <button id="insertSeqBtn" title="时序图 Mermaid"><span class="icon">⟷</span><span class="label">时序图</span></button>
+            <button id="insertGanttBtn" title="甘特图 Mermaid"><span class="icon">📊</span><span class="label">甘特图</span></button>
+            <button id="insertTableBtn" title="插入表格"><span class="icon">⊞</span><span class="label">表格</span></button>
+            <div class="divider"></div>
+            <span class="group-label">公式</span>
+            <button id="insertInlineMathBtn" title="行内公式"><span class="icon">∑</span><span class="label">行内公式</span></button>
+            <button id="insertBlockMathBtn" title="块级公式"><span class="icon">∫</span><span class="label">块级公式</span></button>
+        </div>
+        <!-- 视图 -->
+        <div class="ribbon-panel" id="tab-view">
+            <span class="group-label">尺寸</span>
+            <button id="aspect169Btn" title="宽屏 16:9" class="active"><span class="icon">▭</span><span class="label">16:9</span></button>
+            <button id="aspect43Btn" title="4:3"><span class="icon">▢</span><span class="label">4:3</span></button>
+            <button id="aspectAutoBtn" title="随窗口自适应"><span class="icon">↔</span><span class="label">自适应</span></button>
+            <div class="divider"></div>
+            <span class="group-label">主题</span>
+            <button id="lightModeBtn" title="浅色模式" class="active"><span class="icon">☀️</span><span class="label">浅色</span></button>
+            <button id="darkModeBtn" title="深色模式"><span class="icon">🌙</span><span class="label">深色</span></button>
+        </div>
+        <!-- 插件管理（宿主选项卡；各插件的功能选项卡由插件自行注入） -->
+        <div class="ribbon-panel active" id="tab-plugins">
+            <span class="group-label">已安装插件</span>
+            <div id="pluginList" style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;"><div class="plugin-card off" title="点击卡片查看简介"><div class="pc-inner"><div class="pc-face pc-front"><div class="pc-info" style="font-size: 16px;"><span class="pc-icon">🎬</span><span class="pc-name">数学动画</span></div><div class="pc-block" role="switch" aria-checked="false" title="启用该插件">✕</div></div><div class="pc-face pc-back"><div class="pc-desc" title="用 manim 风格的 DSL 在幻灯片里渲染可播放的数学动画：Canvas 绘制几何图形，KaTeX 排版公式，带可拖动的时间轴。">用 manim 风格的 DSL 在幻灯片里渲染可播放的数学动画：Canvas 绘制几何图形，KaTeX 排版公式，带可拖动的时间轴。</div><div class="pc-meta">mps-manim · v1.0.0 · MPS</div></div></div></div><div class="plugin-card off" title="点击卡片查看简介"><div class="pc-inner"><div class="pc-face pc-front"><div class="pc-info"><span class="pc-icon">🎞</span><span class="pc-name">iframe 播放器</span></div><div class="pc-block" role="switch" aria-checked="false" title="启用该插件">✕</div></div><div class="pc-face pc-back"><div class="pc-desc" title="在幻灯片里嵌入第三方平台播放器：哔哩哔哩、网易云音乐（单曲 / 歌单）、YouTube、Vimeo，或任意 iframe 地址。">在幻灯片里嵌入第三方平台播放器：哔哩哔哩、网易云音乐（单曲 / 歌单）、YouTube、Vimeo，或任意 iframe 地址。</div><div class="pc-meta">iframe · v1.0.0 · MPS</div></div></div></div></div>
+            <div class="divider"></div>
+            <span class="group-label">操作</span>
+            <button id="pluginRescanBtn" title="重新扫描 plugs/manifest.json"><span class="icon">🔄</span><span class="label">重新扫描</span></button>
+            <button id="pluginDocBtn" title="把 ./plugs/README.md 载入编辑器（会覆盖当前文档）"><span class="icon">📘</span><span class="label">加载插件开发文档</span></button>
+            
+        </div>
+        <!-- 控制 -->
+        <div class="ribbon-panel" id="tab-control">
+            <span class="group-label">连接</span>
+            <input id="brokerUrl" type="text" value="wss://broker.hivemq.com:8884/mqtt" title="MQTT/WebSocket 地址（HiveMQ 公共 Broker）" placeholder="ws(s)://主机:端口/mqtt">
+            <input id="roomId" type="text" value="mps" title="房间前缀，同一前缀互相同步" placeholder="房间/前缀">
+            <select id="roleSel" title="本机角色">
+                <option value="master">主控 Master</option>
+                <option value="slave">被控 Slave</option>
+            </select>
+            <button id="mpsConnectBtn" title="连接 MQTT">连接</button>
+            <button id="mpsDisconnectBtn" disabled="" title="断开连接">断开</button>
+            <span id="mpsConnState" class="hint" style="color: var(--text-muted);">未连接</span>
+            <div class="divider"></div>
+            <span class="group-label">文档</span>
+            <button id="mpsSendDocBtn" disabled="" title="把当前 Markdown 发送给所有被控端">📤 发送文档</button>
+            <span class="hint" id="mpsRoleHint">未连接，请填写地址并点击「连接」</span>
+            <div class="ctrl-zone">
+                <div id="mpsDevices" class="ctrl-devices"></div>
+                <div id="mpsLog" class="ctrl-log"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 主体 ===== -->
+<div class="main" id="mainContainer">
+    <div class="editor-panel" id="editorPanel">
+        <div class="panel-header">
+            <span>📝 Markdown</span>
+            <span style="font-weight:400; font-size:11px; color:var(--text-muted);"><span id="wordCount">867</span> 字 · <span id="lineCount">81</span> 行</span>
+        </div>
+        <textarea id="editor" spellcheck="false" placeholder="# 第一页标题
+
+这里的内容属于第一页。
+
+## 第一个断点
+
+点击后才会出现。
+
+### 更深的断点
+
+再次点击后出现。
+
+# 第二页标题
+
+新的一页。"></textarea>
+    </div>
+    <div class="resizer" id="resizer"></div>
+    <div class="stage-panel" id="stagePanel">
+        <div class="stage-toolbar">
+            <button class="nav-btn" id="prevBtn" title="上一页 (←)" disabled="">‹</button>
+            <button class="nav-btn" id="nextBtn" title="下一页 (→)">›</button>
+            <span class="page-info" id="pageInfo">1 / 5</span>
+            <span class="step-info" id="stepInfo">1 · 4</span>
+            <div class="progress-track"><div class="progress-bar" id="progressBar" style="width: 7.14286%;"></div></div>
+            <span class="toolbar-hint">空格/←→ 翻页 · 单击舞台推进</span>
+        </div>
+        <div class="stage-wrap" id="stageWrap">
+            <div class="stage" id="stage" style="width: 613px; height: 344px;"><div class="slide" id="slide" style="font-size: 11px;"><div class="slide-block enter"><h1>欢迎使用 MPS·演示</h1>
+<p>一个由 <strong>Markdown 文档驱动</strong> 的可视化演示。</p>
+</div></div></div>
+            <div class="pres-btns" id="presBtns">
+                <button class="pres-btn primary" id="presentBtn" title="进入放映模式（隐藏编辑区并全屏）"><span class="icon">▶</span><span class="label">放映</span></button>
+                <button class="pres-btn hidden" id="exitPresentBtn" title="退出放映模式"><span class="icon">⏹</span><span class="label">退出放映</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+<input type="file" id="fileInput" accept=".md,.markdown,.txt">
+
+<!-- ===== 状态栏 ===== -->
+<div class="statusbar">
+    <span id="statusLeft">✔ 已载入插件开发文档（plugs/README.md，原内容已覆盖）</span>
+    <div class="right">
+        <span id="slideStatus">1/5 页</span>
+        <span>|</span>
+        <span><code>#</code> 分页 · <code>##</code> 断点</span>
+    </div>
+</div>
+
+<!-- ===== 通用确认弹窗（须位于主脚本之前，脚本启动时即取元素引用） ===== -->
+<div class="mps-modal" id="mpsModal" hidden="">
+    <div class="mps-modal-mask" id="mpsModalMask"></div>
+    <div class="mps-modal-box" role="dialog" aria-modal="true" aria-labelledby="mpsModalTitle">
+        <div class="mps-modal-head"><span class="icon">⚠</span><span id="mpsModalTitle">加载示例</span></div>
+        <div class="mps-modal-body" id="mpsModalMsg">加载示例将覆盖当前 Markdown 内容，且无法撤销。是否继续？</div>
+        <div class="mps-modal-foot">
+            <button id="mpsModalCancel">取消</button>
+            <button class="primary" id="mpsModalOk">覆盖并加载</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* =========================================================
+       1. Markdown-it 初始化
+       ========================================================= */
+    const md = window.markdownit({
+        html: true, linkify: true, typographer: true, breaks: true
+    });
+    try {
+        if (window.markdownitSub) md.use(window.markdownitSub);
+        if (window.markdownitSup) md.use(window.markdownitSup);
+        if (window.markdownitMark) md.use(window.markdownitMark);
+        if (window.markdownitMultimdTable) {
+            md.use(window.markdownitMultimdTable, {
+                multiline: true, rowspan: true, headerless: true,
+                multibody: true, autolabel: true
+            });
+        }
+    } catch (e) { console.warn('markdown-it 插件加载警告:', e); }
+
+    // 宿主 fence：mermaid 由宿主处理，其余语言（如 manim）交给插件注册的渲染器
+    const hostFence = function (tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const info = token.info.trim();
+        if (info === 'mermaid') {
+            return '<div class="mermaid">' + token.content + '</div>';
+        }
+        const prev = md.renderer.rules.__mpsHostPrev;
+        if (prev) return prev(tokens, idx, options, env, self);
+        return self.renderToken(tokens, idx, options);
+    };
+    md.renderer.rules.__mpsHostPrev = md.renderer.rules.fence || null;
+    md.renderer.rules.fence = hostFence;
+
+    // 暴露给插件的导航能力（可选能力；插件经 ctx.nav 使用，动手时先判断非空）
+    const nav = {
+        get slide() { return slideIndex; },
+        get step() { return stepIndex; },
+        get total() { return deck.length; },
+        get steps() { return deck.length ? deck[slideIndex].blocks.length : 0; },
+        next: function () { next(); },
+        prev: function () { prev(); },
+        goto: function (s, st) { gotoSlide(s, st); }
+    };
+
+    MPSPlugins.init({
+        host: 'presenter',
+        md: md,
+        fence: hostFence,
+        refresh: refreshAll,
+        getSlideEl: function () { return el.slide; },
+        getDeckSource: function () { return el.editor.value; },
+        getNav: function () { return nav; },
+        setStatus: function (t) { el.statusLeft.textContent = t; },
+        insertAtCursor: function (t) { insertAtCursor(t); }
+    });
+
+    /* =========================================================
+       2. DOM 引用
+       ========================================================= */
+    const el = {
+        editor: document.getElementById('editor'),
+        stage: document.getElementById('stage'),
+        slide: document.getElementById('slide'),
+        stageWrap: document.getElementById('stageWrap'),
+        pageInfo: document.getElementById('pageInfo'),
+        stepInfo: document.getElementById('stepInfo'),
+        progressBar: document.getElementById('progressBar'),
+        prevBtn: document.getElementById('prevBtn'),
+        nextBtn: document.getElementById('nextBtn'),
+        mainContainer: document.getElementById('mainContainer'),
+        editorPanel: document.getElementById('editorPanel'),
+        stagePanel: document.getElementById('stagePanel'),
+        resizer: document.getElementById('resizer'),
+        presentBtn: document.getElementById('presentBtn'),
+        exitPresentBtn: document.getElementById('exitPresentBtn'),
+        ribbon: document.getElementById('ribbon'),
+        aspect169Btn: document.getElementById('aspect169Btn'),
+        aspect43Btn: document.getElementById('aspect43Btn'),
+        aspectAutoBtn: document.getElementById('aspectAutoBtn'),
+        lightModeBtn: document.getElementById('lightModeBtn'),
+        darkModeBtn: document.getElementById('darkModeBtn'),
+        wordCount: document.getElementById('wordCount'),
+        lineCount: document.getElementById('lineCount'),
+        slideStatus: document.getElementById('slideStatus'),
+        statusLeft: document.getElementById('statusLeft'),
+        fileInput: document.getElementById('fileInput'),
+        loadExampleBtn: document.getElementById('loadExampleBtn'),
+        openFileBtn: document.getElementById('openFileBtn'),
+        clearBtn: document.getElementById('clearBtn'),
+        // —— 通用确认弹窗 ——
+        mpsModal: document.getElementById('mpsModal'),
+        mpsModalMask: document.getElementById('mpsModalMask'),
+        mpsModalTitle: document.getElementById('mpsModalTitle'),
+        mpsModalMsg: document.getElementById('mpsModalMsg'),
+        mpsModalOk: document.getElementById('mpsModalOk'),
+        mpsModalCancel: document.getElementById('mpsModalCancel'),
+        pageBreakBtn: document.getElementById('pageBreakBtn'),
+        breakBtn: document.getElementById('breakBtn'),
+        insertTableBtn: document.getElementById('insertTableBtn'),
+        insertFlowBtn: document.getElementById('insertFlowBtn'),
+        insertSeqBtn: document.getElementById('insertSeqBtn'),
+        insertGanttBtn: document.getElementById('insertGanttBtn'),
+        insertInlineMathBtn: document.getElementById('insertInlineMathBtn'),
+        insertBlockMathBtn: document.getElementById('insertBlockMathBtn'),
+        // —— 插件管理 ——
+        pluginList: document.getElementById('pluginList'),
+        pluginRescanBtn: document.getElementById('pluginRescanBtn'),
+        pluginDocBtn: document.getElementById('pluginDocBtn'),
+        // —— 联机控制 ——
+        brokerUrl: document.getElementById('brokerUrl'),
+        roomId: document.getElementById('roomId'),
+        roleSel: document.getElementById('roleSel'),
+        mpsConnectBtn: document.getElementById('mpsConnectBtn'),
+        mpsDisconnectBtn: document.getElementById('mpsDisconnectBtn'),
+        mpsConnState: document.getElementById('mpsConnState'),
+        mpsSendDocBtn: document.getElementById('mpsSendDocBtn'),
+        mpsRoleHint: document.getElementById('mpsRoleHint'),
+        mpsDevices: document.getElementById('mpsDevices'),
+        mpsLog: document.getElementById('mpsLog')
+    };
+
+    /* =========================================================
+       3. 状态
+       ========================================================= */
+    let deck = [];
+    let slideIndex = 0;
+    let stepIndex = 0;
+    let renderedSlideIndex = -1;
+    let renderedStepIndex = -1;
+    let isDark = false;
+    let aspectMode = '16:9'; // '16:9' | '4:3' | 'auto'
+
+    /* =========================================================
+       4. 任务列表渲染
+       ========================================================= */
+    function renderTaskLists(html) {
+        return html.replace(/<li>([\s\S]*?)<\/li>/g, function (match, content) {
+            const text = content.replace(/<[^>]*>/g, '').trim();
+            const m = text.match(/^\[([ xX])\]\s+(.*)/);
+            if (m) {
+                const checked = m[1].toLowerCase() === 'x';
+                return '<li class="task-list-item"><input type="checkbox" ' +
+                    (checked ? 'checked' : '') + ' disabled> ' + m[2] + '</li>';
+            }
+            return match;
+        });
+    }
+
+    /* =========================================================
+       5. Markdown → HTML（含 KaTeX / Mermaid）
+       ========================================================= */
+    function renderMarkdown(text) {
+        if (!text) return '';
+        let idx = 0;
+        const placeholders = [];
+        let processed = text.replace(/\$\$([\s\S]+?)\$\$/g, function (m, content) {
+            const key = '<!--MPSMATHB' + (idx++) + '-->';
+            placeholders.push({ type: 'block', content: content.trim(), key: key });
+            return key;
+        });
+        processed = processed.replace(/\$([^\$]+?)\$/g, function (m, content) {
+            if (content.indexOf('MPSMATHB') !== -1) return m;
+            const key = '<!--MPSMATHI' + (idx++) + '-->';
+            placeholders.push({ type: 'inline', content: content.trim(), key: key });
+            return key;
+        });
+
+        let html = md.render(processed);
+        placeholders.forEach(function (p) {
+            let rendered;
+            try {
+                if (window.katex) {
+                    rendered = window.katex.renderToString(p.content, {
+                        displayMode: p.type === 'block', throwOnError: false
+                    });
+                } else { throw new Error('no katex'); }
+            } catch (e) {
+                rendered = p.type === 'block' ? '$$' + p.content + '$$' : '$' + p.content + '$';
+            }
+            html = html.split(p.key).join(rendered);
+        });
+        return renderTaskLists(html);
+    }
+
+    /* =========================================================
+       6. Markdown 解析 → 幻灯片结构
+       ========================================================= */
+    function parseDeck(text) {
+        const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+        const slides = [];
+        let slide = null;
+        let chunk = null;
+        let inFence = false;
+        let fenceChar = '';
+        let fenceLen = 0;   // 开围栏的反引号数量，用于判断收尾（见下方）
+
+        function ensureSlide() {
+            if (!slide) { slide = { title: '', blocks: [] }; slides.push(slide); }
+        }
+        function endChunk() {
+            if (slide && chunk) {
+                const content = chunk.lines.join('\n').trim();
+                if (content) slide.blocks.push({ level: chunk.level, content: content });
+            }
+            chunk = null;
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+            if (fenceMatch) {
+                const marker = fenceMatch[1];
+                const ch = marker.charAt(0);
+                if (!inFence) {
+                    inFence = true;
+                    fenceChar = ch;
+                    fenceLen = marker.length;
+                } else if (ch === fenceChar && marker.length >= fenceLen &&
+                           /^\s*$/.test(fenceMatch[2])) {
+                    // 收尾围栏必须「同字符、不短于开围栏、且后面没有信息串」（CommonMark）。
+                    // 少了长度判断，「四反引号块里嵌三反引号」的例子会在内层就被判为结束，
+                    // 于是示例里的 # 变成分页、示例里的 HTML 泄漏成真标签。
+                    inFence = false;
+                    fenceChar = '';
+                    fenceLen = 0;
+                }
+                if (!chunk) { ensureSlide(); chunk = { level: 0, lines: [] }; }
+                chunk.lines.push(line);
+                continue;
+            }
+            if (inFence) {
+                if (!chunk) { ensureSlide(); chunk = { level: 0, lines: [] }; }
+                chunk.lines.push(line);
+                continue;
+            }
+            const hMatch = line.match(/^(#{1,6})\s+(.*)$/);
+            if (hMatch) {
+                const level = hMatch[1].length;
+                const title = hMatch[2].trim();
+                if (level === 1) {
+                    endChunk();
+                    slide = { title: title, blocks: [] };
+                    slides.push(slide);
+                    chunk = { level: 1, lines: [line] };
+                } else {
+                    endChunk();
+                    ensureSlide();
+                    chunk = { level: level, lines: [line] };
+                }
+                continue;
+            }
+            if (!chunk) { ensureSlide(); chunk = { level: 0, lines: [] }; }
+            chunk.lines.push(line);
+        }
+        endChunk();
+        return slides.filter(function (s) { return s.blocks.length > 0; });
+    }
+
+    /* =========================================================
+       7. Mermaid 渲染
+       ========================================================= */
+    function renderMermaidIn(container) {
+        if (!window.mermaid) return;
+        const nodes = container.querySelectorAll('.mermaid');
+        if (!nodes.length) return;
+        const pending = [];
+        nodes.forEach(function (n) {
+            if (!n.getAttribute('data-processed')) pending.push(n);
+        });
+        if (!pending.length) return;
+        try {
+            const r = mermaid.run({ nodes: pending, suppressErrors: true });
+            // 图表异步渲染完成后高度会变化，重新滚动到可见区域
+            if (r && typeof r.then === 'function') r.then(function () { revealScroll(); });
+            else if (r && typeof r.catch === 'function') r.catch(function () {});
+        } catch (e) { console.warn('Mermaid 渲染失败:', e); }
+    }
+
+    /* =========================================================
+       8. 渲染视图
+       ========================================================= */
+    function appendBlock(block, animate) {
+        const div = document.createElement('div');
+        div.className = 'slide-block' + (animate ? ' enter' : '');
+        div.innerHTML = renderMarkdown(block.content);
+        el.slide.appendChild(div);
+        renderMermaidIn(div);
+        // 通知插件：内容块已入 DOM（如数学动画在此初始化场景）
+        MPSPlugins.blockRendered(div);
+    }
+
+    // 强制整页重渲染（插件启停导致 fence 规则变化时使用）
+    function refreshAll() {
+        renderedSlideIndex = -1;
+        renderedStepIndex = -1;
+        renderCurrent();
+    }
+
+    function renderCurrent() {
+        if (!deck.length) {
+            el.slide.innerHTML =
+                '<div class="empty-state">还没有内容<br>在左侧编辑区粘贴你的 Markdown 文档</div>';
+            renderedSlideIndex = -1;
+            renderedStepIndex = -1;
+            updateHud();
+            return;
+        }
+        if (slideIndex >= deck.length) slideIndex = deck.length - 1;
+        if (slideIndex < 0) slideIndex = 0;
+        const curSlide = deck[slideIndex];
+        if (stepIndex >= curSlide.blocks.length) stepIndex = curSlide.blocks.length - 1;
+        if (stepIndex < 0) stepIndex = 0;
+
+        if (slideIndex !== renderedSlideIndex) {
+            el.slide.innerHTML = '';
+            el.slide.scrollTop = 0;
+            renderedSlideIndex = slideIndex;
+            renderedStepIndex = -1;
+            for (let i = 0; i <= stepIndex; i++) appendBlock(curSlide.blocks[i], true);
+            renderedStepIndex = stepIndex;
+        } else if (stepIndex > renderedStepIndex) {
+            for (let i = renderedStepIndex + 1; i <= stepIndex; i++) appendBlock(curSlide.blocks[i], true);
+            renderedStepIndex = stepIndex;
+        } else if (stepIndex < renderedStepIndex) {
+            while (el.slide.children.length > stepIndex + 1) el.slide.removeChild(el.slide.lastElementChild);
+            renderedStepIndex = stepIndex;
+        }
+        revealScroll(); // 新显示的内容自动滚动到可视区域（修复内容出现在画布外）
+        updateHud();
+    }
+
+    // 把最后一块新内容滚动到可见区域（底部对齐，超出一屏则滚动）
+    function revealScroll() {
+        requestAnimationFrame(function () {
+            const maxTop = el.slide.scrollHeight - el.slide.clientHeight;
+            if (maxTop <= 0) return;
+            const sb = el.slide.getBoundingClientRect();
+            const last = el.slide.lastElementChild;
+            let top = maxTop;
+            if (last) {
+                // getBoundingClientRect 量到的是「当前滚动位置下」末块底部到容器顶的距离，
+                // 换算成内容坐标必须再加回当前 scrollTop —— 漏掉它就会少滚「已经滚过的那一段」，
+                // 且前面块越高、误差越大（含插件 / 长内容的页面尤其明显）。
+                const rel = last.getBoundingClientRect().bottom - sb.top + el.slide.scrollTop;
+                top = Math.min(Math.max(rel - el.slide.clientHeight, 0), maxTop);
+            }
+            el.slide.scrollTo({ top: top, behavior: 'smooth' });
+        });
+    }
+
+    /* =========================================================
+       9. HUD 更新
+       ========================================================= */
+    function updateHud() {
+        el.slideStatus.textContent = deck.length ? (slideIndex + 1) + '/' + deck.length + ' 页' : '0/0 页';
+        if (!deck.length) {
+            el.pageInfo.textContent = '0 / 0';
+            el.stepInfo.textContent = '';
+            el.progressBar.style.width = '0%';
+            el.prevBtn.disabled = true;
+            el.nextBtn.disabled = true;
+            MPSPlugins.slideChanged();
+            return;
+        }
+        el.pageInfo.textContent = (slideIndex + 1) + ' / ' + deck.length;
+        const totalBlocks = deck[slideIndex].blocks.length;
+        el.stepInfo.textContent = totalBlocks > 1 ? (stepIndex + 1) + ' · ' + totalBlocks : '';
+        let before = 0;
+        for (let i = 0; i < slideIndex; i++) before += deck[i].blocks.length;
+        let total = 0;
+        for (let i = 0; i < deck.length; i++) total += deck[i].blocks.length;
+        const cur = before + stepIndex + 1;
+        el.progressBar.style.width = (total ? (cur / total * 100) : 0) + '%';
+        const atStart = (slideIndex === 0 && stepIndex === 0);
+        const atEnd = (slideIndex === deck.length - 1 && stepIndex === deck[slideIndex].blocks.length - 1);
+        el.prevBtn.disabled = atStart;
+        el.nextBtn.disabled = atEnd;
+        // 通知插件：页 / 断点位置已变化（宿主内部会按位置去重）
+        MPSPlugins.slideChanged();
+    }
+
+    /* =========================================================
+       10. 导航
+       ========================================================= */
+    function next() {
+        if (!deck.length) { ctrlAfterNav(); return; }
+        const curSlide = deck[slideIndex];
+        if (stepIndex < curSlide.blocks.length - 1) {
+            stepIndex++; renderCurrent();
+        } else if (slideIndex < deck.length - 1) {
+            slideIndex++; stepIndex = 0; renderCurrent();
+        } else { pulseStage(); ctrlAfterNav(); return; }
+        ctrlAfterNav();
+    }
+    function prev() {
+        if (!deck.length) return;
+        if (stepIndex > 0) { stepIndex--; renderCurrent(); }
+        else if (slideIndex > 0) { slideIndex--; stepIndex = deck[slideIndex].blocks.length - 1; renderCurrent(); }
+        ctrlAfterNav();
+    }
+
+    // 跳到指定页的指定断点（st 省略时落在该页最后一块）；供插件经 ctx.nav.goto() 调用
+    function gotoSlide(s, st) {
+        if (!deck.length) return;
+        s = Math.max(0, Math.min(deck.length - 1, Math.floor(Number(s)) || 0));
+        const n = deck[s].blocks.length;
+        slideIndex = s;
+        stepIndex = (st == null)
+            ? n - 1
+            : Math.max(0, Math.min(n - 1, Math.floor(Number(st)) || 0));
+        renderCurrent();
+        ctrlAfterNav();
+    }
+    function pulseStage() {
+        el.stage.classList.remove('pulse');
+        void el.stage.offsetWidth;
+        el.stage.classList.add('pulse');
+        setTimeout(function () { el.stage.classList.remove('pulse'); }, 420);
+    }
+
+    /* =========================================================
+       11. 尺寸自适应（16:9）
+       ========================================================= */
+    function fitStage() {
+        const rect = el.stageWrap.getBoundingClientRect();
+        const availW = Math.max(0, rect.width - 24);
+        const availH = Math.max(0, rect.height - 24);
+        let w = availW, h = availH;
+        if (aspectMode !== 'auto') {
+            const ratio = aspectMode === '4:3' ? 4 / 3 : 16 / 9;
+            w = availW; h = w / ratio;
+            if (h > availH) { h = availH; w = h * ratio; }
+        }
+        w = Math.max(220, Math.floor(w));
+        h = Math.max(124, Math.floor(h));
+        el.stage.style.width = w + 'px';
+        el.stage.style.height = h + 'px';
+        const fontSize = Math.max(11, Math.min(27, w / 62));
+        el.slide.style.fontSize = fontSize.toFixed(2) + 'px';
+    }
+
+    // 切换纵横比尺寸（16:9 / 4:3 / 自适应）。主控模式下把改动同步给所有被控端。
+    function setAspect(mode) {
+        if (aspectMode === mode) return;
+        aspectMode = mode;
+        el.aspect169Btn.classList.toggle('active', mode === '16:9');
+        el.aspect43Btn.classList.toggle('active', mode === '4:3');
+        el.aspectAutoBtn.classList.toggle('active', mode === 'auto');
+        fitStage();
+        ctrlPublishAspect();
+    }
+
+    /* =========================================================
+       12. 主题
+       ========================================================= */
+    function setTheme(dark) {
+        isDark = dark;
+        document.body.classList.toggle('dark-mode', dark);
+        el.lightModeBtn.classList.toggle('active', !dark);
+        el.darkModeBtn.classList.toggle('active', dark);
+        if (window.mermaid) {
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: dark ? 'dark' : 'default',
+                    securityLevel: 'loose',
+                    flowchart: { useMaxWidth: true },
+                    sequence: { useMaxWidth: true }
+                });
+            } catch (e) {}
+        }
+        renderedSlideIndex = -1;
+        renderedStepIndex = -1;
+        renderCurrent();
+    }
+
+    /* =========================================================
+       13. 源码加载与统计
+       ========================================================= */
+    function updateStats() {
+        const v = el.editor.value;
+        el.wordCount.textContent = v.replace(/\s/g, '').length;
+        el.lineCount.textContent = v.split('\n').length;
+    }
+
+    function applySource() {
+        deck = parseDeck(el.editor.value);
+        slideIndex = 0; stepIndex = 0;
+        renderedSlideIndex = -1; renderedStepIndex = -1;
+        el.slide.innerHTML = '';
+        renderCurrent();
+        updateStats();
+    }
+
+    function scheduleRender() {
+        const prevTitle = deck.length ? deck[slideIndex].title : null;
+        deck = parseDeck(el.editor.value);
+        if (deck.length && deck[slideIndex] && deck[slideIndex].title === prevTitle) {
+            // 尽量维持当前页
+            if (stepIndex > deck[slideIndex].blocks.length - 1) {
+                stepIndex = deck[slideIndex].blocks.length - 1;
+            }
+        } else {
+            slideIndex = 0; stepIndex = 0;
+        }
+        renderedSlideIndex = -1; renderedStepIndex = -1;
+        renderCurrent();
+        updateStats();
+    }
+
+    let renderTimer = null;
+    el.editor.addEventListener('input', function () {
+        if (renderTimer) clearTimeout(renderTimer);
+        renderTimer = setTimeout(scheduleRender, 250);
+    });
+
+    /* =========================================================
+       14. 插入文本工具
+       ========================================================= */
+    function insertAtCursor(text) {
+        const ta = el.editor;
+        const start = ta.selectionStart, end = ta.selectionEnd;
+        ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+        const pos = start + text.length;
+        ta.selectionStart = ta.selectionEnd = pos;
+        ta.focus();
+        scheduleRender();
+    }
+
+    /* =========================================================
+       14.2 插件管理 —— 统一开关 plugs/ 下扫描到的插件
+       ========================================================= */
+    // 插件自报的图标（plugin.json 的 icon 字段，缺省用通用图标）
+    function pluginIcon(p) { return p.icon || '🧩'; }
+    // 卡片的翻转状态按 id 记忆，开关插件导致重绘后不会复位
+    const flippedPlugins = {};
+
+    function renderPluginList() {
+        const box = el.pluginList;
+        if (!box) return;
+        box.innerHTML = '';
+
+        const list = MPSPlugins.list();
+        if (!list.length) {
+            const s = document.createElement('span');
+            s.className = 'hint';
+            s.innerHTML = '未扫描到插件：请确认 <code>plugs/manifest.json</code> 存在，' +
+                '且通过 HTTP 服务打开本页（file:// 下浏览器禁止读取插件清单）。';
+            box.appendChild(s);
+            return;
+        }
+
+        list.forEach(function (p) {
+            const card = document.createElement('div');
+            card.className = 'plugin-card ' + (p.enabled ? 'on' : 'off') +
+                (flippedPlugins[p.id] ? ' flipped' : '');
+            card.title = '点击卡片查看简介';
+
+            const inner = document.createElement('div');
+            inner.className = 'pc-inner';
+
+            /* —— 正面：图标 + 名称 + 开关方块 —— */
+            const front = document.createElement('div');
+            front.className = 'pc-face pc-front';
+
+            const info = document.createElement('div');
+            info.className = 'pc-info';
+
+            const ic = document.createElement('span');
+            ic.className = 'pc-icon';
+            ic.textContent = pluginIcon(p);
+
+            const nm = document.createElement('span');
+            nm.className = 'pc-name';
+            nm.textContent = p.name;
+
+            info.appendChild(ic);
+            info.appendChild(nm);
+
+            // 开关：整块与卡片等高的方块，开启时蓝色 √、关闭时灰色 ×
+            const sw = document.createElement('div');
+            sw.className = 'pc-block';
+            sw.setAttribute('role', 'switch');
+            sw.setAttribute('aria-checked', p.enabled ? 'true' : 'false');
+            sw.textContent = p.enabled ? '✓' : '✕';
+            sw.title = !p.declared ? '清单缺失' : (p.enabled ? '停用该插件' : '启用该插件');
+            sw.addEventListener('click', function (e) {
+                e.stopPropagation();                    // 点开关不翻转卡片
+                if (sw.classList.contains('pending')) return;
+                sw.classList.add('pending');
+                MPSPlugins.setEnabled(p.id, !p.enabled).then(function () {
+                    renderPluginList();
+                    el.statusLeft.textContent = (p.enabled ? '⏹ 已停用插件：' : '🧩 已启用插件：') + p.name;
+                }).catch(function (e) {
+                    el.statusLeft.textContent = '✕ 插件操作失败：' + e.message;
+                    renderPluginList();
+                });
+            });
+
+            front.appendChild(info);
+            front.appendChild(sw);
+
+            /* —— 背面：简介 + 元数据 —— */
+            const back = document.createElement('div');
+            back.className = 'pc-face pc-back';
+            const ds = document.createElement('div');
+            ds.className = 'pc-desc';
+            ds.textContent = p.description || '该插件未提供简介。';
+            ds.title = ds.textContent;   // 简介较长被截断时可悬停查看全文
+            const mt = document.createElement('div');
+            mt.className = 'pc-meta';
+            mt.textContent = p.id +
+                (p.version ? ' · v' + p.version : '') +
+                (p.author ? ' · ' + p.author : '');
+            back.appendChild(ds);
+            back.appendChild(mt);
+
+            inner.appendChild(front);
+            inner.appendChild(back);
+            card.appendChild(inner);
+            card.addEventListener('click', function () {
+                card.classList.toggle('flipped');
+                flippedPlugins[p.id] = card.classList.contains('flipped');
+            });
+            box.appendChild(card);
+        });
+    }
+
+    /* =========================================================
+       14.3 通用确认弹窗 —— 与页面 UI 统一，替代浏览器原生 confirm
+       ========================================================= */
+    // confirmDialog('提示' 或 { title, message, okText, cancelText }) → Promise<boolean>
+    function confirmDialog(opts) {
+        const o = typeof opts === 'string' ? { message: opts } : (opts || {});
+        return new Promise(function (resolve) {
+            let settled = false;
+            function close(ok) {
+                if (settled) return;
+                settled = true;
+                el.mpsModal.hidden = true;
+                el.mpsModalOk.removeEventListener('click', onOk);
+                el.mpsModalCancel.removeEventListener('click', onCancel);
+                el.mpsModalMask.removeEventListener('click', onCancel);
+                el.mpsModal.removeEventListener('keydown', onKey);
+                resolve(ok);
+            }
+            function onOk() { close(true); }
+            function onCancel() { close(false); }
+            function onKey(e) {
+                if (e.key === 'Escape') { e.preventDefault(); close(false); }
+                else if (e.key === 'Enter') { e.preventDefault(); close(true); }
+            }
+            el.mpsModalTitle.textContent = o.title || '请确认';
+            el.mpsModalMsg.textContent = o.message || '';
+            el.mpsModalOk.textContent = o.okText || '确定';
+            el.mpsModalCancel.textContent = o.cancelText || '取消';
+            el.mpsModalOk.addEventListener('click', onOk);
+            el.mpsModalCancel.addEventListener('click', onCancel);
+            el.mpsModalMask.addEventListener('click', onCancel);
+            el.mpsModal.addEventListener('keydown', onKey);
+            el.mpsModal.hidden = false;
+            el.mpsModalOk.focus();
+        });
+    }
+
+    /* =========================================================
+       15. 示例文档：独立在 ./example/example_presenter.md，改文档不用动代码
+       ========================================================= */
+    // 读取失败时的兜底（例如 file:// 直开时 fetch 被拦）
+    const SAMPLE_FALLBACK = [
+        '# 欢迎使用 MPS·演示',
+        '',
+        '未能从 `./example/example_presenter.md` 读取完整示例（请通过 HTTP 打开本页，例如 `python -m http.server`）。',
+        '',
+        '## 分页规则',
+        '',
+        '- `#` 一级标题 → 开启**新的一页**',
+        '- `##` 及更深层级标题 → 当前页的**断点**'
+    ].join('\n');
+
+    let sampleCache = null;
+
+    function loadSample() {
+        if (sampleCache) return Promise.resolve(sampleCache);
+        return fetch('./example/example_presenter.md', { cache: 'no-cache' }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        }).then(function (text) {
+            sampleCache = text;
+            return text;
+        }).catch(function (e) {
+            el.statusLeft.textContent = '⚠ 未能载入 example_presenter.md（' + e.message + '），已改用内置简易示例';
+            return SAMPLE_FALLBACK;
+        });
+    }
+
+    /* =========================================================
+       16. 打包（核心）：注入 MD 到纯净引擎并下载
+       ========================================================= */
+    function buildStandalone(sourceMd, aspect, cdn, enabledPlugins, bakedMeta, assetScripts, preloadScripts) {
+        aspect = aspect === '4:3' || aspect === 'auto' ? aspect : '16:9';
+        // 将源码转成可安全内嵌到 <script> 的 JS 字符串字面量
+        const srcLiteral = JSON.stringify(sourceMd).replace(/</g, '\\u003c');
+        // 随包烘焙的启用插件清单（纯净版据此安装插件，保证观众端开箱可用）
+        const pluginsLiteral = JSON.stringify(enabledPlugins || []).replace(/</g, '\\u003c');
+        // 插件元数据内嵌：file:// 下 fetch 清单会被拦，这里直接给出结果
+        const bakedLiteral = bakedMeta && bakedMeta.length
+            ? JSON.stringify(bakedMeta).replace(/</g, '\\u003c')
+            : '';
+        // 随包资产（base64）：必须在内联引导脚本之前登记，插件运行时才取得到
+        const assetTags = (assetScripts || []).map(function (a) {
+            return '<script src="./' + a.name + '"><' + '/script>';
+        });
+        // 插件声明要预载的脚本：经典 <script> 加载，file:// 下不受同源限制
+        const preloadTags = (preloadScripts || []).map(function (p) {
+            return '<script src="./' + p + '"><' + '/script>';
+        });
+        // 库引用：正常随包附带 ./lib/（离线）；file:// 下 fetch 被禁用时改用 CDN 兜底
+        const lib = cdn ? {
+            md: 'https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js',
+            sub: 'https://cdn.jsdelivr.net/npm/markdown-it-sub@2.0.0/dist/markdown-it-sub.min.js',
+            sup: 'https://cdn.jsdelivr.net/npm/markdown-it-sup@2.0.0/dist/markdown-it-sup.min.js',
+            mark: 'https://cdn.jsdelivr.net/npm/markdown-it-mark@4.0.0/dist/markdown-it-mark.min.js',
+            table: 'https://cdn.jsdelivr.net/npm/markdown-it-multimd-table@4.2.3/dist/markdown-it-multimd-table.min.js',
+            katexCss: 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css',
+            katexJs: 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js',
+            mermaid: 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js',
+            plug: ''
+        } : {
+            md: './lib/markdown-it.min.js',
+            sub: './lib/markdown-it-sub.min.js',
+            sup: './lib/markdown-it-sup.min.js',
+            mark: './lib/markdown-it-mark.min.js',
+            table: './lib/markdown-it-multimd-table.min.js',
+            katexCss: './lib/katex.min.css',
+            katexJs: './lib/katex.min.js',
+            mermaid: './lib/mermaid.min.js',
+            plug: './lib/mps-plugins.js'
+        };
+        return [
+            '<!DOCTYPE html>',
+            '<html lang="zh-CN">',
+            '<head>',
+            '<meta charset="UTF-8" />',
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />',
+            '<title>MPS·演示 - 纯净版</title>',
+            '<!-- 外部依赖：随包附带 lib 文件夹，离线可用 -->',
+            '<script src="' + lib.md + '"><'+'/script>',
+            '<script src="' + lib.sub + '"><'+'/script>',
+            '<script src="' + lib.sup + '"><'+'/script>',
+            '<script src="' + lib.mark + '"><'+'/script>',
+            '<script src="' + lib.table + '"><'+'/script>',
+            '<link rel="stylesheet" href="' + lib.katexCss + '" />',
+            '<script src="' + lib.katexJs + '"><'+'/script>',
+            '<script src="' + lib.mermaid + '"><'+'/script>',
+            lib.plug ? '<script src="' + lib.plug + '"><'+'/script>' : '<!-- CDN 模式未随包提供插件宿主（lib/mps-plugins.js），插件不会生效 -->',
+            bakedLiteral ? '<!-- 插件元数据（内嵌，file:// 下无需 fetch 清单） -->' : '',
+            bakedLiteral ? '<script>window.MPS_PLUGINS_BAKED = ' + bakedLiteral + ';<'+'/script>' : '',
+            assetTags.length ? '<!-- 随包资产（base64，供插件运行时 fetch 读取） -->' : '',
+            assetTags.join('\n'),
+            preloadTags.length ? '<!-- 插件声明的预载脚本（经典 <script>，file:// 下可用） -->' : '',
+            preloadTags.join('\n'),
+            '<style>',
+            ':root{--bg-body:#0f1115;--bg-slide:#ffffff;--text-primary:#24292f;--text-secondary:#57606a;--text-muted:#8b949e;--border-color:#d0d7de;--border-light:#e1e4e8;--code-bg:#f6f8fa;--accent:#0969da;--table-border:#8b949e;--bar-bg:#ffffff;}',
+            'body.dark-mode{--bg-body:#000000;--bg-slide:#1c1f23;--text-primary:#e6edf3;--text-secondary:#adbac7;--text-muted:#768390;--border-color:#3a3f46;--border-light:#30353b;--code-bg:#26292e;--accent:#58a6ff;--table-border:#6e7681;--bar-bg:#1b1e22;}',
+            '*{margin:0;padding:0;box-sizing:border-box;}',
+            'html,body{height:100%;overflow:hidden;}',
+            'body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg-body);color:var(--text-primary);display:flex;flex-direction:column;transition:background .25s,color .25s;-webkit-font-smoothing:antialiased;}',
+            '/* 舞台：铺满整个视口，纯净演示 */',
+            '.stage-wrap{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;padding:10px;overflow:hidden;}',
+            '.stage{position:relative;background:var(--bg-slide);border-radius:12px;box-shadow:0 14px 50px rgba(0,0,0,.28);overflow:hidden;cursor:pointer;transition:background .25s;}',
+            '.stage.pulse{animation:pulse .4s ease;}',
+            '@keyframes pulse{0%{transform:scale(1);}25%{transform:scale(.985);}100%{transform:scale(1);}}',
+            '.slide{position:absolute;inset:0;padding:1.6em 2em;overflow-y:auto;overflow-x:hidden;line-height:1.65;scrollbar-width:thin;scrollbar-color:var(--border-color) transparent;}',
+            '.slide::-webkit-scrollbar{width:8px;}',
+            '.slide::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:4px;}',
+            '.slide-block+.slide-block{margin-top:.9em;}',
+            '.slide-block.enter{animation:blockIn .42s cubic-bezier(.22,.85,.3,1) both;}',
+            '@keyframes blockIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}',
+            '.empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:15px;text-align:center;}',
+            '.slide h1{font-size:2.1em;font-weight:700;line-height:1.25;margin:0 0 .65em;padding-bottom:.18em;border-bottom:3px solid var(--accent);display:inline-block;letter-spacing:-.01em;}',
+            '.slide h2{font-size:1.45em;font-weight:650;line-height:1.3;margin:0 0 .55em;display:flex;align-items:center;gap:.5em;}',
+            '.slide h2::before{content:"";flex-shrink:0;width:.18em;height:.95em;background:var(--accent);border-radius:2px;}',
+            '.slide h3{font-size:1.2em;font-weight:600;margin:.15em 0 .45em;}',
+            '.slide h4{font-size:1.08em;font-weight:600;margin:.15em 0 .4em;color:var(--text-secondary);}',
+            '.slide h5,.slide h6{font-size:1em;font-weight:600;margin:.15em 0 .35em;color:var(--text-secondary);}',
+            '.slide p{margin:.5em 0;}',
+            '.slide mark{background:#fff3b0;padding:0 .18em;border-radius:3px;}',
+            'body.dark-mode .slide mark{background:#6b5b1a;}',
+            '.slide ul,.slide ol{padding-left:1.5em;margin:.5em 0;}',
+            '.slide li{margin:.22em 0;}',
+            '.slide li::marker{color:var(--accent);}',
+            '.slide .task-list-item{list-style:none;margin-left:-1.45em;}',
+            '.slide .task-list-item input{accent-color:var(--accent);pointer-events:none;margin-right:.5em;}',
+            '.slide code{font-family:"Consolas","Courier New",monospace;font-size:.88em;background:var(--code-bg);padding:.12em .4em;border-radius:4px;border:1px solid var(--border-light);}',
+            '.slide pre{background:var(--code-bg);border:1px solid var(--border-light);border-radius:9px;padding:.85em 1.05em;overflow-x:auto;margin:.7em 0;}',
+            '.slide pre code{background:none;border:none;padding:0;font-size:.85em;line-height:1.6;}',
+            '.slide blockquote{border-left:.25em solid var(--accent);padding:.2em 0 .2em 1em;margin:.7em 0;color:var(--text-secondary);}',
+            '.slide blockquote blockquote{margin-left:1.2em;border-left-color:var(--text-muted);}',
+            '.slide table{border-collapse:collapse;margin:.75em 0;font-size:.95em;}',
+            '.slide th,.slide td{border:2px solid var(--table-border);padding:.38em .9em;text-align:left;}',
+            '.slide th{background:var(--code-bg);font-weight:600;}',
+            '.slide img{max-width:100%;border-radius:8px;}',
+            '.slide a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}',
+            '.slide .katex-display{margin:.75em 0;overflow-x:auto;padding:.2em 0;}',
+            '.slide .mermaid{text-align:center;margin:.8em 0;overflow-x:auto;}',
+            'body.dark-mode .slide .mermaid svg{background:transparent;}',
+            'body.dark-mode .slide .mermaid .node rect,body.dark-mode .slide .mermaid .node circle,body.dark-mode .slide .mermaid .node ellipse,body.dark-mode .slide .mermaid .node polygon,body.dark-mode .slide .mermaid .node path{stroke:#aaa;stroke-width:1.5px;}',
+            'body.dark-mode .slide .mermaid .edgePath .path{stroke:#aaa!important;}',
+            'body.dark-mode .slide .mermaid .cluster rect{stroke:#888!important;}',
+            'body.dark-mode .slide .mermaid .actor{stroke:#aaa!important;fill:#2d2f33!important;}',
+            'body.dark-mode .slide .mermaid .actor-line{stroke:#888!important;}',
+            'body.dark-mode .slide .mermaid .messageLine0,body.dark-mode .slide .mermaid .messageLine1{stroke:#aaa!important;}',
+            '/* 底部纯净工具条 */',
+            '.deck-bar{flex-shrink:0;height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--bar-bg);border-top:1px solid var(--border-color);transition:background .25s;}',
+            '.nav-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border-color);background:var(--bar-bg);color:var(--text-primary);font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}',
+            '.nav-btn:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff;}',
+            '.nav-btn:disabled{opacity:.35;cursor:not-allowed;}',
+            '.page-info{font-size:13px;font-weight:600;min-width:56px;text-align:center;font-variant-numeric:tabular-nums;}',
+            '.step-info{font-size:12px;color:var(--text-muted);min-width:44px;font-variant-numeric:tabular-nums;}',
+            '.spacer{flex:1;}',
+            '.progress-track{width:180px;height:4px;border-radius:2px;background:var(--border-light);overflow:hidden;}',
+            '.progress-bar{height:100%;width:0%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#6cb6ff);transition:width .35s cubic-bezier(.3,.9,.3,1);}',
+            '.bar-btn{height:32px;padding:0 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--bar-bg);color:var(--text-primary);font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s;}',
+            '.bar-btn:hover{background:var(--code-bg);border-color:var(--text-muted);}',
+            '@media(max-width:720px){.progress-track{width:60px;}.bar-btn span{display:none;}}',
+            '</style>',
+            '</head>',
+            '<body>',
+            '<main class="stage-wrap"><div class="stage" id="stage"><div class="slide" id="slide"></div></div></main>',
+            '<footer class="deck-bar">',
+            '<button class="nav-btn" id="prevBtn" title="上一页 (←)">‹</button>',
+            '<button class="nav-btn" id="nextBtn" title="下一页 (→)">›</button>',
+            '<span class="page-info" id="pageInfo">0 / 0</span>',
+            '<span class="step-info" id="stepInfo"></span>',
+            '<div class="spacer"></div>',
+            '<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>',
+            '<button class="bar-btn" id="themeBtn" title="切换深浅色">🌙</button>',
+            '<button class="bar-btn" id="fsBtn" title="全屏 (F)">⛶<span>全屏</span></button>',
+            '</footer>',
+            '<script>',
+            '"use strict";',
+            'const SOURCE = ' + srcLiteral + ';',
+            'const S_ASP = ' + JSON.stringify(aspect) + ';',
+            'window.MPS_PLUGINS_ENABLED = ' + pluginsLiteral + ';',
+            /* ===== 纯净引擎逻辑 ===== */
+            'const md=window.markdownit({html:true,linkify:true,typographer:true,breaks:true});',
+            'try{if(window.markdownitSub)md.use(window.markdownitSub);if(window.markdownitSup)md.use(window.markdownitSup);if(window.markdownitMark)md.use(window.markdownitMark);if(window.markdownitMultimdTable)md.use(window.markdownitMultimdTable,{multiline:true,rowspan:true,headerless:true,multibody:true,autolabel:true});}catch(e){}',
+            'const _of=md.renderer.rules.fence||function(t,i,o,e,s){return s.renderToken(t,i,o);};',
+            'const _hf=function(t,i,o,e,s){const tk=t[i],n=tk.info.trim();if(n==="mermaid")return \'<div class="mermaid">\'+tk.content+\'</div>\';return _of(t,i,o,e,s);};',
+            'md.renderer.rules.fence=_hf;',
+            'const _nav={get slide(){return slideIndex;},get step(){return stepIndex;},get total(){return deck.length;},get steps(){return deck.length?deck[slideIndex].blocks.length:0;},next:function(){nx2();},prev:function(){pv2();},goto:function(s,st){if(!deck.length)return;s=Math.max(0,Math.min(deck.length-1,Math.floor(Number(s))||0));const b=deck[s].blocks.length;slideIndex=s;stepIndex=(st==null)?(b-1):Math.max(0,Math.min(b-1,Math.floor(Number(st))||0));renderCur();}};',
+            'if(window.MPSPlugins){MPSPlugins.init({host:"engine",md:md,fence:_hf,refresh:refAll,getSlideEl:function(){return slide;},getDeckSource:function(){return SOURCE;},getNav:function(){return _nav;}});}',
+            'const stage=document.getElementById("stage"),slide=document.getElementById("slide"),pv=document.getElementById("prevBtn"),nx=document.getElementById("nextBtn"),pi=document.getElementById("pageInfo"),si=document.getElementById("stepInfo"),pb=document.getElementById("progressBar"),tBtn=document.getElementById("themeBtn");',
+            'function renderTask(html){return html.replace(/<li>([\\s\\S]*?)<\\/li>/g,function(m,c){const t=c.replace(/<[^>]*>/g,"").trim(),r=t.match(/^\\[([ xX])\\]\\s+(.*)/);if(r){const ch=r[1].toLowerCase()==="x";return \'<li class="task-list-item"><input type="checkbox" \'+(ch?"checked":"")+\' disabled> \'+r[2]+\'</li>\';}return m;});}',
+            'function renderMd(text){if(!text)return "";let idx=0;const ph=[];let p=text.replace(/\\$\\$([\\s\\S]+?)\\$\\$/g,function(m,c){const k="<!--MPSMATHB"+(idx++)+"-->";ph.push({type:"block",content:c.trim(),key:k});return k;});p=p.replace(/\\$([^\\$]+?)\\$/g,function(m,c){if(c.indexOf("MPSMATHB")!==-1)return m;const k="<!--MPSMATHI"+(idx++)+"-->";ph.push({type:"inline",content:c.trim(),key:k});return k;});let h=md.render(p);ph.forEach(function(q){let r;try{if(window.katex)r=window.katex.renderToString(q.content,{displayMode:q.type==="block",throwOnError:false});else throw 0;}catch(e){r=q.type==="block"?"$$"+q.content+"$$":"$"+q.content+"$";}h=h.split(q.key).join(r);});return renderTask(h);}',
+            'function parseDeck(text){const lines=String(text||"").replace(/\\r\\n?/g,"\\n").split("\\n");const slides=[];let slide=null,chunk=null,inFence=false,fChar="",fLen=0;function es(){if(!slide){slide={title:"",blocks:[]};slides.push(slide);}}function ec(){if(slide&&chunk){const c=chunk.lines.join("\\n").trim();if(c)slide.blocks.push({level:chunk.level,content:c});}chunk=null;}for(let i=0;i<lines.length;i++){const ln=lines[i],fm=ln.match(/^\\s*(`{3,}|~{3,})(.*)$/);if(fm){const mk=fm[1],ch=mk.charAt(0);if(!inFence){inFence=true;fChar=ch;fLen=mk.length;}else if(ch===fChar&&mk.length>=fLen&&/^\\s*$/.test(fm[2])){inFence=false;fChar="";fLen=0;}if(!chunk){es();chunk={level:0,lines:[]};}chunk.lines.push(ln);continue;}if(inFence){if(!chunk){es();chunk={level:0,lines:[]};}chunk.lines.push(ln);continue;}const hm=ln.match(/^(#{1,6})\\s+(.*)$/);if(hm){const lv=hm[1].length,tt=hm[2].trim();if(lv===1){ec();slide={title:tt,blocks:[]};slides.push(slide);chunk={level:1,lines:[ln]};}else{ec();es();chunk={level:lv,lines:[ln]};}continue;}if(!chunk){es();chunk={level:0,lines:[]};}chunk.lines.push(ln);}ec();return slides.filter(function(s){return s.blocks.length>0;});}',
+            'function renderMer(ct){if(!window.mermaid)return;const ns=ct.querySelectorAll(".mermaid");if(!ns.length)return;const p=[];ns.forEach(function(n){if(!n.getAttribute("data-processed"))p.push(n);});if(!p.length)return;try{const r=mermaid.run({nodes:p,suppressErrors:true});if(r&&typeof r.then==="function")r.then(function(){scr();});if(r&&typeof r.catch==="function")r.catch(function(){});}catch(e){}}',
+            'let deck=[],slideIndex=0,stepIndex=0,rSI=-1,rSP=-1,isDark=false;',
+            'function setTheme(dark){isDark=dark;document.body.classList.toggle("dark-mode",dark);tBtn.textContent=dark?"☀️":"🌙";if(window.mermaid){try{mermaid.initialize({startOnLoad:false,theme:dark?"dark":"default",securityLevel:"loose",flowchart:{useMaxWidth:true},sequence:{useMaxWidth:true}});}catch(e){}}rSI=-1;rSP=-1;renderCur();}',
+            'function appendBlk(b,anim){const d=document.createElement("div");d.className="slide-block"+(anim?" enter":"");d.innerHTML=renderMd(b.content);slide.appendChild(d);renderMer(d);if(window.MPSPlugins)MPSPlugins.blockRendered(d);}',
+            'function scr(){requestAnimationFrame(function(){const m=slide.scrollHeight-slide.clientHeight;if(m<=0)return;const sb=slide.getBoundingClientRect(),lg=slide.lastElementChild;let t=m;if(lg){const rel=lg.getBoundingClientRect().bottom-sb.top+slide.scrollTop;t=Math.min(Math.max(rel-slide.clientHeight,0),m);}slide.scrollTo({top:t,behavior:"smooth"});});}',
+            'function renderCur(){if(!deck.length){slide.innerHTML=\'<div class="empty-state">(空演示)</div>\';rSI=-1;rSP=-1;updHud();return;}if(slideIndex>=deck.length)slideIndex=deck.length-1;if(slideIndex<0)slideIndex=0;const c=deck[slideIndex];if(stepIndex>=c.blocks.length)stepIndex=c.blocks.length-1;if(stepIndex<0)stepIndex=0;if(slideIndex!==rSI){slide.innerHTML="";slide.scrollTop=0;rSI=slideIndex;rSP=-1;for(let i=0;i<=stepIndex;i++)appendBlk(c.blocks[i],true);rSP=stepIndex;}else if(stepIndex>rSP){for(let i=rSP+1;i<=stepIndex;i++)appendBlk(c.blocks[i],true);rSP=stepIndex;}else if(stepIndex<rSP){while(slide.children.length>stepIndex+1)slide.removeChild(slide.lastElementChild);rSP=stepIndex;}scr();updHud();}',
+            'function updHud(){if(!deck.length){pi.textContent="0 / 0";si.textContent="";pb.style.width="0%";pv.disabled=true;nx.disabled=true;if(window.MPSPlugins)MPSPlugins.slideChanged();return;}pi.textContent=(slideIndex+1)+" / "+deck.length;const tb=deck[slideIndex].blocks.length;si.textContent=tb>1?(stepIndex+1)+" · "+tb:"";let bf=0,tot=0;for(let i=0;i<slideIndex;i++)bf+=deck[i].blocks.length;for(let i=0;i<deck.length;i++)tot+=deck[i].blocks.length;pb.style.width=((bf+stepIndex+1)/(tot||1)*100)+"%";const a1=(slideIndex===0&&stepIndex===0),a2=(slideIndex===deck.length-1&&stepIndex===deck[slideIndex].blocks.length-1);pv.disabled=a1;nx.disabled=a2;if(window.MPSPlugins)MPSPlugins.slideChanged();}',
+            'function nx2(){if(!deck.length)return;const c=deck[slideIndex];if(stepIndex<c.blocks.length-1){stepIndex++;renderCur();}else if(slideIndex<deck.length-1){slideIndex++;stepIndex=0;renderCur();}}',
+            'function pv2(){if(!deck.length)return;if(stepIndex>0){stepIndex--;renderCur();}else if(slideIndex>0){slideIndex--;stepIndex=deck[slideIndex].blocks.length-1;renderCur();}}',
+            'function fit(){const r=document.querySelector(".stage-wrap").getBoundingClientRect();const aw=Math.max(0,r.width-20),ah=Math.max(0,r.height-20);let w=aw,h=ah;if(S_ASP!=="auto"){const rt=S_ASP==="4:3"?4/3:16/9;w=aw;h=w/rt;if(h>ah){h=ah;w=h*rt;}}w=Math.max(220,Math.floor(w));h=Math.max(124,Math.floor(h));stage.style.width=w+"px";stage.style.height=h+"px";const fz=Math.max(11,Math.min(27,w/62));slide.style.fontSize=fz.toFixed(2)+"px";}',
+            'stage.addEventListener("click",function(e){if(e.target.closest("a"))return;if(e.target.closest("[data-mps-plugin]"))return;if(window.getSelection&&window.getSelection().toString())return;nx2();});',
+            'pv.addEventListener("click",function(e){e.stopPropagation();pv2();});',
+            'nx.addEventListener("click",function(e){e.stopPropagation();nx2();});',
+            'tBtn.addEventListener("click",function(){setTheme(!isDark);});',
+            'document.getElementById("fsBtn").addEventListener("click",function(){if(!document.fullscreenElement){const p=document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(function(){});}else document.exitFullscreen();});',
+            'document.addEventListener("fullscreenchange",function(){setTimeout(fit,120);});',
+            'document.addEventListener("keydown",function(e){switch(e.key){case "ArrowRight":case "ArrowDown":case " ":case "PageDown":case "Enter":e.preventDefault();nx2();break;case "ArrowLeft":case "ArrowUp":case "PageUp":case "Backspace":e.preventDefault();pv2();break;case "Home":slideIndex=0;stepIndex=0;renderCur();break;case "End":slideIndex=deck.length-1;stepIndex=deck[slideIndex].blocks.length-1;renderCur();break;case "f":case "F":document.getElementById("fsBtn").click();break;}});',
+            'let rt2=null;window.addEventListener("resize",function(){if(rt2)clearTimeout(rt2);rt2=setTimeout(fit,80);});',
+            'function refAll(){rSI=-1;rSP=-1;renderCur();}',
+            'function boot(){if(window.mermaid){try{mermaid.initialize({startOnLoad:false,theme:"default",securityLevel:"loose",flowchart:{useMaxWidth:true},sequence:{useMaxWidth:true}});}catch(e){}}deck=parseDeck(SOURCE);slideIndex=0;stepIndex=0;fit();renderCur();if(window.MPSPlugins){MPSPlugins.on("pluginsReady",refAll);MPSPlugins.boot();}setTimeout(fit,60);}',
+            'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();',
+            '<'+'/script>',
+            '</body>',
+            '</html>'
+        ].join('\n');
+    }
+
+    /* =========================================================
+       16.2 打包为 ZIP：注入 MD 到纯净引擎，连同 lib 一起打包
+       ========================================================= */
+    // 需要随包附带的 lib 文件（与 HTML 中引用的 ./lib/* 一一对应）
+    const LIB_FILES = [
+        'markdown-it.min.js',
+        'markdown-it-sub.min.js',
+        'markdown-it-sup.min.js',
+        'markdown-it-mark.min.js',
+        'markdown-it-multimd-table.min.js',
+        'katex.min.css',
+        'katex.min.js',
+        'mermaid.min.js',
+        'mps-plugins.js',
+        'logo.png'
+    ];
+    // KaTeX 字体（katex.min.css 引用 fonts/*.woff2，需一并打包才能离线显示公式）
+    const FONT_FILES = [
+        'KaTeX_Main-Regular.woff2',
+        'KaTeX_Math-Italic.woff2',
+        'KaTeX_Size2-Regular.woff2'
+    ];
+
+    // —— CRC32（ZIP 校验用） ——
+    const CRC_TABLE = (function () {
+        const t = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            t[i] = c >>> 0;
+        }
+        return t;
+    })();
+    function crc32(u8) {
+        let c = 0xFFFFFFFF;
+        for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+        return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    // —— 极简 ZIP 生成器（STORE 不压缩，兼容 Win/mac 自带解压） ——
+    function makeZip(entries) {
+        const now = new Date();
+        const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+        const date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+        const parts = [];
+        const central = [];
+        let offset = 0;
+        let cdSize = 0;
+
+        entries.forEach(function (e) {
+            const nameBytes = new TextEncoder().encode(e.name);
+            const data = e.data;
+            const crc = crc32(data);
+
+            // 本地文件头
+            const local = new DataView(new ArrayBuffer(30));
+            local.setUint32(0, 0x04034b50, true);   // PK\x03\x04
+            local.setUint16(4, 20, true);           // 版本
+            local.setUint16(6, 0x0800, true);       // UTF-8 文件名
+            local.setUint16(8, 0, true);            // STORE
+            local.setUint16(10, time, true);
+            local.setUint16(12, date, true);
+            local.setUint32(14, crc, true);
+            local.setUint32(18, data.length, true);
+            local.setUint32(22, data.length, true);
+            local.setUint16(26, nameBytes.length, true);
+            local.setUint16(28, 0, true);
+            parts.push(local.buffer, nameBytes, data);
+
+            // 中央目录项
+            const cen = new DataView(new ArrayBuffer(46));
+            cen.setUint32(0, 0x02014b50, true);     // PK\x01\x02
+            cen.setUint16(4, 20, true);
+            cen.setUint16(6, 20, true);
+            cen.setUint16(8, 0x0800, true);
+            cen.setUint16(10, 0, true);
+            cen.setUint16(12, time, true);
+            cen.setUint16(14, date, true);
+            cen.setUint32(16, crc, true);
+            cen.setUint32(20, data.length, true);
+            cen.setUint32(24, data.length, true);
+            cen.setUint16(28, nameBytes.length, true);
+            cen.setUint16(30, 0, true);
+            cen.setUint16(32, 0, true);
+            cen.setUint16(34, 0, true);
+            cen.setUint16(36, 0, true);
+            cen.setUint32(38, 0, true);
+            cen.setUint32(42, offset, true);
+            central.push(cen.buffer, nameBytes);
+
+            offset += 30 + nameBytes.length + data.length;
+            cdSize += 46 + nameBytes.length;
+        });
+
+        // 中央目录 + 结束记录
+        const cdStart = offset;
+        const eocd = new DataView(new ArrayBuffer(22));
+        eocd.setUint32(0, 0x06054b50, true);        // PK\x05\x06
+        eocd.setUint16(4, 0, true);
+        eocd.setUint16(6, 0, true);
+        eocd.setUint16(8, entries.length, true);
+        eocd.setUint16(10, entries.length, true);
+        eocd.setUint32(12, cdSize, true);
+        eocd.setUint32(16, cdStart, true);
+        eocd.setUint16(20, 0, true);
+        central.forEach(function (p) { parts.push(p); });
+        parts.push(eocd.buffer);
+
+        return new Blob(parts, { type: 'application/zip' });
+    }
+
+    // —— 读取 lib 文件：优先 fetch（http 环境），失败则让用户选 lib 文件夹 ——
+    async function fetchLibFiles() {
+        const results = [];
+        const fetchOne = async function (rel) {
+            const resp = await fetch('./lib/' + rel);
+            if (!resp.ok) throw new Error('读取失败: ' + rel);
+            results.push({ name: 'lib/' + rel, data: new Uint8Array(await resp.arrayBuffer()) });
+        };
+        for (const f of LIB_FILES) await fetchOne(f);
+        for (const f of FONT_FILES) await fetchOne('fonts/' + f);
+        return results;
+    }
+
+    // —— 随包附带的项目文档（缺失时静默跳过，不影响打包） ——
+    const DOC_FILES = ['README.md', 'THIRD-PARTY-NOTICES.md'];
+    async function fetchDocFiles() {
+        const results = [];
+        for (const rel of DOC_FILES) {
+            try {
+                const resp = await fetch('./' + rel, { cache: 'no-cache' });
+                if (!resp.ok) continue;
+                results.push({ name: rel, data: new Uint8Array(await resp.arrayBuffer()) });
+            } catch (e) { /* 文件不存在或读取失败：跳过 */ }
+        }
+        return results;
+    }
+
+    // —— 读取插件目录：仅打包「启用中」的插件，并同步裁剪清单 ——
+    // 返回 { files, baked, assets, preload }：
+    //   files   随包文件（靠 <script>/<link>/<img> 加载，file:// 下不受同源限制）
+    //   baked   插件元数据，直接内嵌进 HTML，免得 file:// 下 fetch 清单失败
+    //   assets  插件运行时用 fetch 读取的数据文件，转成 base64 的 *.asset.js 随包
+    //   preload 需以经典 <script> 预载的脚本（如 Pyodide 的 asm.js，
+    //           否则它会用动态 import() 加载，file:// 下会被 CORS 拦掉）
+    async function fetchPlugFiles(enabledIds) {
+        const enc = new TextEncoder();
+        const files = [];
+        const baked = [];
+        const assets = [];
+        const preload = [];
+        const manResp = await fetch('./plugs/manifest.json', { cache: 'no-cache' });
+        if (!manResp.ok) throw new Error('读取 plugs/manifest.json 失败');
+        const man = await manResp.json();
+        const ids = (man.plugins || []).filter(function (id) { return enabledIds.indexOf(id) >= 0; });
+
+        // 纯净版清单只保留随包的插件，避免加载不存在的目录
+        files.push({
+            name: 'plugs/manifest.json',
+            data: enc.encode(JSON.stringify({ version: man.version || 1, plugins: ids }, null, 2))
+        });
+
+        for (const id of ids) {
+            const pResp = await fetch('./plugs/' + id + '/plugin.json', { cache: 'no-cache' });
+            if (!pResp.ok) continue;
+            const meta = await pResp.json();
+            meta.id = meta.id || id;
+            baked.push(meta);
+            // 需随包的文件 = files ∪ runtime ∪ styles ∪ entry ∪ plugin.json
+            const need = new Set(['plugin.json']);
+            (meta.files || []).forEach(function (f) { need.add(f); });
+            (meta.runtime || []).forEach(function (f) { need.add(f); });
+            (meta.styles || []).forEach(function (f) { need.add(f); });
+            if (meta.entry) need.add(meta.entry);
+            (meta.preload || []).forEach(function (f) { preload.push('plugs/' + id + '/' + f); });
+
+            for (const f of need) {
+                const rel = 'plugs/' + id + '/' + f;
+                const r = await fetch('./' + rel, { cache: 'no-cache' });
+                if (!r.ok) continue;
+                const buf = new Uint8Array(await r.arrayBuffer());
+                // 元数据始终原样随包（便于人工查看，也供 HTTP 场景使用）
+                const isMeta = /(?:^|\/)(?:plugin|manifest)\.json$/i.test(f);
+                // 数据型文件（wasm/zip/json…）只能靠 fetch，必须内嵌；为避免体积翻倍，
+                // 内嵌后就不再原样重复随包。其余（js/css/图片/字体）照旧原样随包。
+                if (!isMeta && /\.(?:wasm|gz|zip|json|bin|data|whl)$/i.test(f)) {
+                    assets.push({
+                        name: rel + '.asset.js',
+                        data: enc.encode(
+                            '/* 随包资产：' + rel + '（打包时自动生成，供 file:// 离线使用） */\n' +
+                            'MPSPlugins.bake(' + JSON.stringify(rel) + ',' +
+                            JSON.stringify(base64FromBytes(buf)) + ',' +
+                            JSON.stringify(mimeOf(f)) + ');\n'
+                        )
+                    });
+                } else {
+                    files.push({ name: rel, data: buf });
+                }
+            }
+
+            // 插件声明的「根目录快捷方式」：在 ZIP 根放一个跳转桩，真身在插件目录里
+            // （双击体验：老师不用钻进 plugs/ 找脚本）
+            const shortcuts = Array.isArray(meta.packShortcuts) ? meta.packShortcuts : [];
+            for (const sc of shortcuts) {
+                if (!sc || !sc.name || !sc.target) continue;
+                const real = 'plugs/' + id + '/' + String(sc.target).replace(/^\/+/, '');
+                let body;
+                if (sc.kind === 'sh') {
+                    body = '#!/bin/sh\n'
+                        + '# 快捷方式：真正的脚本在 ' + real + '\n'
+                        + 'HERE=$(cd "$(dirname "$0")" && pwd)\n'
+                        + 'exec sh "$HERE/' + real + '" "$HERE"\n';
+                } else {
+                    body = '@echo off\r\n'
+                        + 'rem shortcut -> ' + real + '\r\n'
+                        + 'setlocal\r\n'
+                        + 'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0' + real.replace(/\//g, '\\') + '" -Root "%~dp0"\r\n'
+                        + 'if errorlevel 1 pause\r\n'
+                        + 'endlocal\r\n';
+                }
+                files.push({ name: sc.name, data: enc.encode(body) });
+            }
+        }
+        return { files: files, baked: baked, assets: assets, preload: preload };
+    }
+
+    // 二进制 → base64（分批处理，避免超长参数导致调用栈溢出）
+    function base64FromBytes(bytes) {
+        let s = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+            s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+        }
+        return btoa(s);
+    }
+
+    function mimeOf(f) {
+        const ext = (f.split('.').pop() || '').toLowerCase();
+        return {
+            wasm: 'application/wasm',
+            gz: 'application/gzip',
+            zip: 'application/zip',
+            json: 'application/json',
+            png: 'image/png',
+            jpg: 'image/jpeg',
+            jpeg: 'image/jpeg',
+            svg: 'image/svg+xml',
+            woff2: 'font/woff2',
+            woff: 'font/woff',
+            ttf: 'font/ttf',
+            bin: 'application/octet-stream'
+        }[ext] || 'application/octet-stream';
+    }
+
+    async function packageDeck() {
+        let src = el.editor.value.trim();
+        if (!src) {
+            el.statusLeft.textContent = '⚠ 请先输入 Markdown 内容';
+            return;
+        }
+        const name = ((src.match(/^\s*#\s*(.+)$/m) || [])[1] || '演示')
+            .trim().replace(/[\\/:*?"<>|\r\n]+/g, ' ').trim() || '演示';
+
+        // 1) 读取 lib 文件；file:// 等受限环境下 fetch 不可用，则自动降级为 CDN 单文件版
+        let entries = null;
+        try {
+            entries = await fetchLibFiles();
+        } catch (e) {
+            entries = null;
+        }
+        // 启用中的插件（整目录随包）
+        const enabledPlugins = MPSPlugins.list()
+            .filter(function (p) { return p.enabled; })
+            .map(function (p) { return p.id; });
+        let plugPack = null;
+        if (entries && enabledPlugins.length) {
+            try {
+                plugPack = await fetchPlugFiles(enabledPlugins);
+                entries = entries.concat(plugPack.files, plugPack.assets);
+            } catch (e) { /* plugs 读取失败：跳过插件，仅打包基础库 */ }
+        }
+
+        // 2) 生成纯净 HTML
+        try {
+            const html = buildStandalone(src, aspectMode, !entries, enabledPlugins,
+                plugPack ? plugPack.baked : null,
+                plugPack ? plugPack.assets : null,
+                plugPack ? plugPack.preload : null);
+            const htmlName = name + '-演示.html';
+
+            if (entries) {
+                // 随包附带 README 与第三方许可声明（文件缺失时静默跳过）
+                const docs = await fetchDocFiles();
+                entries = entries.concat(docs);
+
+                // 有本地 lib：组装 ZIP（HTML + lib + plugs + 文档），离线可用
+                const all = [{ name: htmlName, data: new TextEncoder().encode(html) }].concat(entries);
+                const zipBlob = makeZip(all);
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name + '-演示.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+                el.statusLeft.textContent = '✔ 已打包：' + a.download +
+                    '（' + Math.round(zipBlob.size / 1024) + ' KB，解压后双击 HTML 即可离线演示' +
+                    (enabledPlugins.length ? '，已内嵌 ' + enabledPlugins.length + ' 个插件' : '') +
+                    (docs.length ? '，含 ' + docs.map(function (d) { return d.name; }).join(' / ') : '') + '）';
+            } else {
+                // 无法读取本地 lib（多为 file:// 直开）：降级为 CDN 引用的单文件 HTML
+                const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = htmlName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+                el.statusLeft.textContent = '✔ 已打包（CDN 版）：' + a.download +
+                    '（当前环境读取不到 lib，已改用 CDN 引用，播放需联网）';
+            }
+        } catch (err) {
+            el.statusLeft.textContent = '✕ 打包失败：' + err.message;
+        }
+    }
+
+    /* =========================================================
+       17. Ribbon 切换
+       ========================================================= */
+    // 事件委托：插件注入的选项卡是动态节点，不能用快照式绑定
+    function switchTab(tabId) {
+        document.querySelectorAll('.ribbon-tabs button').forEach(function (btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+        document.querySelectorAll('.ribbon-panel').forEach(function (panel) {
+            panel.classList.toggle('active', panel.id === tabId);
+        });
+    }
+    document.querySelector('.ribbon-tabs').addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-tab]');
+        if (btn) switchTab(btn.dataset.tab);
+    });
+
+    /* =========================================================
+       18. 事件绑定
+       ========================================================= */
+    el.prevBtn.addEventListener('click', function (e) { e.stopPropagation(); prev(); });
+    el.nextBtn.addEventListener('click', function (e) { e.stopPropagation(); next(); });
+    el.stage.addEventListener('click', function (e) {
+        if (e.target.closest('a')) return;
+        if (e.target.closest('[data-mps-plugin]')) return; // 插件内容（如动画播放器）内部交互不推进
+        const sel = window.getSelection && window.getSelection().toString();
+        if (sel) return;
+        next();
+    });
+
+    // —— 放映模式：隐藏编辑区（仅舞台）并全屏 ——
+    // 编辑模式 = 并排；放映模式 = 仅舞台 + 全屏
+    function enterPresent() {
+        el.editorPanel.classList.add('hidden-panel');
+        el.resizer.classList.add('hidden-panel');
+        el.ribbon.classList.add('hidden-panel');
+        el.presentBtn.classList.add('hidden');
+        el.exitPresentBtn.classList.remove('hidden');
+        el.statusLeft.textContent = '▶ 放映中（按 Esc 或「退出放映」返回编辑）';
+        setTimeout(fitStage, 30);
+        if (!document.fullscreenElement) {
+            const p = document.documentElement.requestFullscreen();
+            if (p && p.catch) p.catch(function () {});
+        }
+    }
+    function exitPresent(exitFs) {
+        el.editorPanel.classList.remove('hidden-panel');
+        el.resizer.classList.remove('hidden-panel');
+        el.ribbon.classList.remove('hidden-panel');
+        el.exitPresentBtn.classList.add('hidden');
+        el.presentBtn.classList.remove('hidden');
+        el.statusLeft.textContent = '就绪';
+        if (exitFs !== false && document.fullscreenElement) {
+            const p = document.exitFullscreen();
+            if (p && p.catch) p.catch(function () {});
+        }
+        setTimeout(fitStage, 30);
+    }
+    el.presentBtn.addEventListener('click', function () { enterPresent(); });
+    el.exitPresentBtn.addEventListener('click', function (e) { e.stopPropagation(); exitPresent(); });
+
+    // 主题
+    el.lightModeBtn.addEventListener('click', function () { setTheme(false); });
+    el.darkModeBtn.addEventListener('click', function () { setTheme(true); });
+    el.aspect169Btn.addEventListener('click', function () { setAspect('16:9'); });
+    el.aspect43Btn.addEventListener('click', function () { setAspect('4:3'); });
+    el.aspectAutoBtn.addEventListener('click', function () { setAspect('auto'); });
+
+    // 全屏状态变化：仅由全屏切换驱动界面重置（Esc 退出全屏时，同步退出放映）
+    document.addEventListener('fullscreenchange', function () {
+        if (!document.fullscreenElement) {
+            // 停止放映，恢复 编辑模式
+            el.editorPanel.classList.remove('hidden-panel');
+            el.resizer.classList.remove('hidden-panel');
+            el.ribbon.classList.remove('hidden-panel');
+            el.exitPresentBtn.classList.add('hidden');
+            el.presentBtn.classList.remove('hidden');
+            el.statusLeft.textContent = '就绪';
+        }
+        setTimeout(fitStage, 120);
+    });
+
+    // 示例 / 清空
+    el.loadExampleBtn.addEventListener('click', function () {
+        confirmDialog({
+            title: '加载示例',
+            message: '加载示例将覆盖当前 Markdown 内容，且无法撤销。是否继续？',
+            okText: '覆盖并加载'
+        }).then(function (ok) {
+            if (!ok) return;
+            loadSample().then(function (text) {
+                el.editor.value = text;
+                scheduleRender();   // 保持在当前选项卡（文件），不自动跳转
+            });
+        });
+    });
+    el.clearBtn.addEventListener('click', function () {
+        confirmDialog({
+            title: '清空编辑区',
+            message: '清空将删除编辑区中的全部 Markdown 内容，且无法撤销。是否继续？',
+            okText: '清空'
+        }).then(function (ok) {
+            if (!ok) return;
+            el.editor.value = '';
+            deck = [];
+            slideIndex = 0; stepIndex = 0;
+            renderedSlideIndex = -1; renderedStepIndex = -1;
+            renderCurrent();
+            updateStats();
+            el.editor.focus();
+        });
+    });
+
+    // 打开 .md：读入后先确认再覆盖当前内容
+    el.openFileBtn.addEventListener('click', function () { el.fileInput.click(); });
+    el.fileInput.addEventListener('change', function () {
+        const f = el.fileInput.files && el.fileInput.files[0];
+        el.fileInput.value = '';
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function () {
+            const text = String(reader.result || '');
+            confirmDialog({
+                title: '打开文件',
+                message: '将载入「' + f.name + '」并覆盖当前 Markdown 内容，此操作无法撤销。是否继续？',
+                okText: '覆盖并打开'
+            }).then(function (ok) {
+                if (!ok) return;
+                el.editor.value = text;
+                scheduleRender();
+            });
+        };
+        reader.readAsText(f, 'utf-8');
+    });
+
+    // 插入
+    el.pageBreakBtn.addEventListener('click', function () { insertAtCursor('\n\n# 新页面\n\n'); });
+    el.breakBtn.addEventListener('click', function () { insertAtCursor('\n\n## 断点\n\n'); });
+    el.insertTableBtn.addEventListener('click', function () {
+        insertAtCursor('\n\n| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| a | b | c |\n');
+    });
+    el.insertFlowBtn.addEventListener('click', function () {
+        insertAtCursor('\n\n```mermaid\ngraph TD\n    A[开始] --> B{判断}\n    B -->|是| C[执行]\n    B -->|否| D[结束]\n```\n');
+    });
+    el.insertSeqBtn.addEventListener('click', function () {
+        insertAtCursor('\n\n```mermaid\nsequenceDiagram\n    参与者A->>参与者B: 你好！\n    参与者B-->>参与者A: 你好！\n```\n');
+    });
+    el.insertGanttBtn.addEventListener('click', function () {
+        insertAtCursor('\n\n```mermaid\ngantt\n    title 项目进度\n    dateFormat  YYYY-MM-DD\n    section 阶段A\n    任务1 :a1, 2024-01-01, 7d\n    任务2 :after a1, 5d\n```\n');
+    });
+    el.insertInlineMathBtn.addEventListener('click', function () {
+        insertAtCursor(' $E = mc^2$ ');
+    });
+    el.insertBlockMathBtn.addEventListener('click', function () {
+        insertAtCursor('\n\n$$ \\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2} $$\n');
+    });
+
+    // —— 插件管理 ——
+    el.pluginRescanBtn.addEventListener('click', function () {
+        el.statusLeft.textContent = '🔄 正在重新扫描 plugs/ …';
+        MPSPlugins.boot().then(function () {
+            renderPluginList();
+            el.statusLeft.textContent = '🔄 已重新扫描插件清单';
+        }).catch(function (e) {
+            renderPluginList();
+            el.statusLeft.textContent = '✕ 插件扫描失败：' + e.message;
+        });
+    });
+
+    // 载入插件开发文档：覆盖当前文档前先确认
+    el.pluginDocBtn.addEventListener('click', function () {
+        confirmDialog({
+            title: '载入插件开发文档',
+            message: '载入插件开发文档将覆盖当前 Markdown 内容，且无法撤销。是否继续？',
+            okText: '覆盖并载入'
+        }).then(function (ok) {
+            if (!ok) return;
+            el.statusLeft.textContent = '📘 正在载入插件开发文档 …';
+            fetch('./plugs/README.md', { cache: 'no-cache' }).then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            }).then(function (text) {
+                el.editor.value = text;
+                el.editor.scrollTop = 0;
+                applySource();
+                el.statusLeft.textContent = '✔ 已载入插件开发文档（plugs/README.md，原内容已覆盖）';
+            }).catch(function (e) {
+                el.statusLeft.textContent = '✕ 载入开发文档失败：' + e.message + '（请确认通过 HTTP 打开且 plugs/README.md 存在）';
+            });
+        });
+    });
+
+    // 打包
+    document.getElementById('packageBtn').addEventListener('click', packageDeck);
+    // 键盘快捷键
+    document.addEventListener('keydown', function (e) {
+        if (e.target === el.editor) return;
+        if (!el.mpsModal.hidden) return;   // 弹窗打开时不响应翻页快捷键
+        switch (e.key) {
+            case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown': case 'Enter':
+                e.preventDefault(); next(); break;
+            case 'ArrowLeft': case 'ArrowUp': case 'PageUp': case 'Backspace':
+                e.preventDefault(); prev(); break;
+            case 'f': case 'F':
+                e.preventDefault();
+                if (el.editorPanel.classList.contains('hidden-panel')) exitPresent(); else enterPresent();
+                break;
+            case 'Escape':
+                if (el.editorPanel.classList.contains('hidden-panel')) exitPresent(false);
+                break;
+        }
+    });
+
+    // 分隔条拖拽
+    let dragging = false;
+    el.resizer.addEventListener('mousedown', function (e) {
+        dragging = true;
+        el.resizer.classList.add('active');
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        const rect = el.mainContainer.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        const clampR = Math.max(0.2, Math.min(0.7, ratio));
+        el.editorPanel.style.flex = '0 0 ' + (clampR * 100) + '%';
+        el.stagePanel.style.flex = '1 1 ' + ((1 - clampR) * 100) + '%';
+        setTimeout(fitStage, 20);
+    });
+    document.addEventListener('mouseup', function () {
+        if (dragging) { dragging = false; el.resizer.classList.remove('active'); }
+    });
+
+    // 窗口尺寸
+    let resizeTimer = null;
+    window.addEventListener('resize', function () {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(fitStage, 80);
+    });
+
+    /* =========================================================
+       19.5 联机控制（MQTT over WebSocket / HiveMQ）
+       主控 Master：翻页时向 /command 广播“精确位置”指令，可推送文档
+       被控 Slave：可本地自行翻页（不循环触发），收到主控精确位置即绝对跳转
+       同步始终使用绝对坐标（页 index + 断点 step index），杜绝“翻下一页”类
+       相对指令导致的连翻两次问题。
+       ========================================================= */
+    const ctrl = { client: null, prefix: '', role: '', id: '', connected: false, devices: {}, logBuf: [], manualClose: false, _loadingLib: false, _waiters: [] };
+
+    function ctrlLog(msg) {
+        ctrl.logBuf.unshift('[' + new Date().toLocaleTimeString() + '] ' + msg);
+        if (ctrl.logBuf.length > 40) ctrl.logBuf.length = 40;
+        el.mpsLog.textContent = ctrl.logBuf.join('\n');
+    }
+    function deviceName() {
+        const parts = (ctrl.id || '').split('-');
+        return parts.length ? (parts[parts.length - 1] || 'mps') : 'mps';
+    }
+    function ctrlUpdateUI() {
+        const on = ctrl.connected;
+        el.mpsConnectBtn.disabled = on;
+        el.mpsDisconnectBtn.disabled = !on;
+        el.mpsSendDocBtn.disabled = !(on && ctrl.role === 'master');
+        el.brokerUrl.disabled = on;
+        el.roomId.disabled = on;
+        el.roleSel.disabled = on;
+        el.mpsConnState.textContent = on ? ('已连接 · ' + (ctrl.role === 'master' ? '主控' : '被控') + ' · ' + ctrl.id) : '未连接';
+        el.mpsConnState.style.color = on ? 'var(--active-color)' : 'var(--text-muted)';
+        el.mpsRoleHint.textContent = on
+            ? (ctrl.role === 'master' ? '主控：翻页 / 发送文档会同步给所有被控端' : '被控：可自行翻页，并接收主控的精确位置指令')
+            : '未连接，请填写地址并点击「连接」';
+        renderDevices();
+    }
+    function renderDevices() {
+        const ids = Object.keys(ctrl.devices);
+        if (!ids.length) { el.mpsDevices.innerHTML = ''; return; }
+        let html = '';
+        ids.forEach(function (id) {
+            const d = ctrl.devices[id];
+            const cls = d.online ? 'online' : '';
+            const roleTxt = d.role === 'master' ? '主控' : '被控';
+            const posTxt = (d.online && d.slide != null) ? (' · 第' + (d.slide + 1) + '页') : '';
+            html += '<span class="ctrl-device ' + cls + '">● <b>' + roleTxt + '</b> ' + (d.name || '—') + posTxt + '</span>';
+        });
+        el.mpsDevices.innerHTML = html;
+    }
+
+    // 主控发布绝对翻页指令；被控上报自身状态（同一函数按角色分流）
+    function ctrlPublishPos() {
+        if (!ctrl.connected || !ctrl.client) return;
+        const isMaster = ctrl.role === 'master';
+        const payload = JSON.stringify({ ver: 1, type: isMaster ? 'goto' : 'state', id: ctrl.id, role: ctrl.role, slide: slideIndex, step: stepIndex });
+        try { ctrl.client.publish(isMaster ? ctrl.prefix + '/command' : ctrl.prefix + '/state', payload); } catch (e) {}
+    }
+    // 导航后的同步钩子（已接入 next()/prev()）
+    function ctrlAfterNav() {
+        if (ctrl.connected) ctrlPublishPos();
+    }
+    // 主控广播当前纵横比尺寸
+    function ctrlPublishAspect() {
+        if (!ctrl.connected || ctrl.role !== 'master') return;
+        try { ctrl.client.publish(ctrl.prefix + '/command', JSON.stringify({ ver: 1, type: 'aspect', value: aspectMode })); } catch (e) {}
+    }
+
+    function ctrlLoadLib(cb) {
+        if (window.mqtt) return cb(true);
+        if (ctrl._loadingLib) { ctrl._waiters.push(cb); return; }
+        ctrl._loadingLib = true; ctrl._waiters = [cb];
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/mqtt/dist/mqtt.min.js';
+        s.onload = function () { ctrl._loadingLib = false; (ctrl._waiters || []).forEach(function (w) { w( !!window.mqtt ); }); ctrl._waiters = []; };
+        s.onerror = function () { ctrl._loadingLib = false; (ctrl._waiters || []).forEach(function (w) { w(false); }); ctrl._waiters = []; };
+        document.head.appendChild(s);
+    }
+
+    function ctrlConnect() {
+        const url = el.brokerUrl.value.trim() || 'wss://broker.hivemq.com:8884/mqtt';
+        const prefix = (el.roomId.value.trim() || 'mps').replace(/[\\\/#+ ]/g, '');
+        ctrl.prefix = prefix;
+        ctrl.role = el.roleSel.value;
+        ctrl.id = 'mps' + (ctrl.role === 'master' ? 'M' : 'S') + '-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+        ctrl.devices = {};
+        ctrlLog('连接 ' + url + ' ｜ 前缀「' + prefix + '」 ｜ 角色=' + ctrl.role + ' ｜ id=' + ctrl.id);
+        ctrlLoadLib(function (ok) {
+            if (!ok) { ctrlLog('✕ 无法加载 MQTT 客户端库（需联网），连接取消'); return; }
+            try {
+                if (ctrl.client) { try { ctrl.client.end(true); } catch (e) {} }
+                const M = window.mqtt;
+                ctrl.client = M.connect(url, {
+                    clientId: ctrl.id, clean: true, connectTimeout: 8000, keepalive: 40,
+                    reconnectPeriod: 3000, maxMessageSize: 4 * 1024 * 1024, maxPacketSizeToClient: 4 * 1024 * 1024,
+                    will: {
+                        topic: prefix + '/presence',
+                        payload: JSON.stringify({ ver: 1, type: 'presence', id: ctrl.id, role: ctrl.role, name: deviceName(), online: false }),
+                        qos: 0, retain: true
+                    }
+                });
+                ctrl.client.on('connect', ctrlOnConnected);
+                ctrl.client.on('message', ctrlOnMessage);
+                ctrl.client.on('reconnect', function () { ctrlLog('重连中…'); });
+                ctrl.client.on('error', function (e) { ctrl.connected = false; ctrlUpdateUI(); ctrlLog('✕ 连接错误: ' + ((e && e.message) || e)); });
+                ctrl.client.on('close', function () {
+                    const ignore = ctrl.manualClose; ctrl.manualClose = false;
+                    ctrl.connected = false; ctrlUpdateUI();
+                    ctrlLog(ignore ? '连接已关闭' : '连接断开，自动重连中…');
+                });
+            } catch (e) { ctrlLog('✕ ' + e.message); }
+        });
+    }
+
+    function ctrlOnConnected() {
+        ctrl.connected = true;
+        const topics = [ctrl.prefix + '/command', ctrl.prefix + '/state', ctrl.prefix + '/presence'];
+        try { ctrl.client.subscribe(topics, { qos: 0 }, function () {}); } catch (e) {}
+        try {
+            ctrl.client.publish(ctrl.prefix + '/presence',
+                JSON.stringify({ ver: 1, type: 'presence', id: ctrl.id, role: ctrl.role, name: deviceName(), online: true }),
+                { qos: 0, retain: true });
+        } catch (e) {}
+        // 被控上线：向主控请求当前文档/位置
+        if (ctrl.role === 'slave') {
+            try { ctrl.client.publish(ctrl.prefix + '/state', JSON.stringify({ ver: 1, type: 'hello', id: ctrl.id })); } catch (e) {}
+        }
+        ctrlLog('✔ 已连接（' + (ctrl.role === 'master' ? '主控' : '被控') + '）');
+        // 主控上线：广播当前文档、位置、尺寸，让被控端/迟到端对齐
+        if (ctrl.role === 'master') {
+            if (el.editor.value.trim()) ctrlPushDoc();
+            ctrlPublishPos();
+            ctrlPublishAspect();
+        }
+        ctrlUpdateUI();
+    }
+
+    function ctrlOnMessage(topic, payload) {
+        let data;
+        try { data = JSON.parse(payload.toString()); } catch (e) { return; }
+        if (!data || data.type === undefined) return;
+
+        if (topic.indexOf('/presence') !== -1) {
+            const ex = ctrl.devices[data.id] || {};
+            ex.online = !!data.online; ex.role = data.role || ex.role; ex.name = data.name || ex.name;
+            if (data.online === false) { ex.slide = null; ex.step = null; }
+            ctrl.devices[data.id] = ex;
+            ctrlUpdateUI();
+            return;
+        }
+        if (topic.indexOf('/state') !== -1) {
+            if (data.type === 'hello' && ctrl.role === 'master') {
+                const ex = ctrl.devices[data.id] || { online: true, role: 'slave', name: '—' };
+                ctrl.devices[data.id] = ex;
+                renderDevices();
+                // 向新加入的被控端广播当前文档、位置、尺寸
+                if (el.editor.value.trim()) ctrlPushDoc();
+                ctrlPublishPos();
+                ctrlPublishAspect();
+                return;
+            }
+            if (data.type === 'state' && ctrl.role === 'master') {
+                const ex = ctrl.devices[data.id] || { online: true, role: 'slave', name: '—' };
+                ex.online = true; ex.role = data.role || 'slave'; ex.slide = data.slide; ex.step = data.step;
+                ctrl.devices[data.id] = ex;
+                renderDevices();
+                ctrlLog('RECV ' + (data.id || '?') + ' 同步至 第' + ((data.slide || 0) + 1) + '页');
+                return;
+            }
+            return;
+        }
+        if (topic.indexOf('/command') !== -1 && ctrl.role === 'slave') {
+            if (data.type === 'doc') { ctrlApplyDoc(data.content); ctrlLog('✔ 已接收文档「' + (data.name || '') + '」(' + ((data.content || '').length) + ' 字符)'); }
+            else if (data.type === 'goto') { ctrlApplyGoto(data.slide, data.step); }
+            else if (data.type === 'aspect') { setAspect(data.value); ctrlLog('已同步尺寸 → ' + data.value); }
+        }
+    }
+
+    function ctrlApplyDoc(content) {
+        el.editor.value = content;
+        deck = parseDeck(content);
+        slideIndex = 0; stepIndex = 0;
+        renderedSlideIndex = -1; renderedStepIndex = -1;
+        el.slide.innerHTML = '';
+        renderCurrent();
+        updateStats();
+        ctrlPublishPos(); // 被控上报自己的位置
+    }
+    // 绝对跳转：覆盖式定位到指定页与断点，不触发相对翻页
+    function ctrlApplyGoto(slide, step) {
+        if (!deck.length) return;
+        const s = Math.max(0, Math.min(slide, deck.length - 1));
+        const st = Math.max(0, Math.min(step, deck[s].blocks.length - 1));
+        slideIndex = s; stepIndex = st;
+        renderedSlideIndex = -1; renderedStepIndex = -1;
+        renderCurrent();
+        ctrlPublishPos(); // 上报，便于主控确认对齐
+        ctrlLog('同步 → 第' + (s + 1) + '页 断点' + (st + 1));
+    }
+
+    // 主控发送文档给所有被控端
+    function ctrlPushDoc() {
+        const content = el.editor.value;
+        if (!content.trim()) { ctrlLog('⚠ 暂无文档内容'); return; }
+        const name = ((content.match(/^\s*#\s*(.+)$/m) || [])[1] || '演示').trim().replace(/[\\/:*?"<>|]+/g, ' ');
+        try {
+            ctrl.client.publish(ctrl.prefix + '/command', JSON.stringify({ ver: 1, type: 'doc', id: ctrl.id, name: name, content: content }));
+            ctrlLog('✔ 已发送文档给所有被控端（' + content.length + ' 字符）');
+        } catch (e) { ctrlLog('✕ 发送失败: ' + e.message); }
+    }
+
+    function ctrlDisconnect() {
+        if (!ctrl.client) return;
+        ctrl.manualClose = true;
+        try {
+            ctrl.client.publish(ctrl.prefix + '/presence',
+                JSON.stringify({ ver: 1, type: 'presence', id: ctrl.id, role: ctrl.role, name: deviceName(), online: false }),
+                { qos: 0, retain: true },
+                function () { try { ctrl.client.end(true); } catch (e) {} });
+        } catch (e) { try { ctrl.client.end(true); } catch (e2) {} }
+        ctrl.client = null; ctrl.connected = false; ctrl.devices = {};
+        ctrlUpdateUI(); ctrlLog('已断开');
+    }
+
+    el.mpsConnectBtn.addEventListener('click', ctrlConnect);
+    el.mpsDisconnectBtn.addEventListener('click', ctrlDisconnect);
+    el.mpsSendDocBtn.addEventListener('click', ctrlPushDoc);
+    el.roleSel.addEventListener('change', ctrlUpdateUI);
+    // 页面关闭时尽力上报下线，未正常上报时由 MQTT Last Will 兜底
+    window.addEventListener('beforeunload', function () {
+        if (ctrl.connected && ctrl.client) {
+            try { ctrl.client.publish(ctrl.prefix + '/presence', JSON.stringify({ ver: 1, type: 'presence', id: ctrl.id, role: ctrl.role, name: deviceName(), online: false }), { qos: 0, retain: true }); } catch (e) {}
+        }
+    });
+    ctrlUpdateUI();
+
+    /* =========================================================
+       19. 启动
+       ========================================================= */
+    function boot() {
+        if (window.mermaid) {
+            try {
+                mermaid.initialize({
+                    startOnLoad: false, theme: 'default', securityLevel: 'loose',
+                    flowchart: { useMaxWidth: true }, sequence: { useMaxWidth: true }, gantt: { useMaxWidth: true }
+                });
+            } catch (e) {}
+        }
+        // 示例文档在 ./example/example_presenter.md：等它到位再首次渲染，避免「先渲染兜底内容再替换」的闪烁
+        loadSample().then(function (text) {
+            el.editor.value = text;
+            applySource();
+            fitStage();
+            updateStats();
+        });
+
+        // 扫描 plugs/ 并安装插件：插件选项卡由插件自行注入
+        renderPluginList();
+        MPSPlugins.on('pluginsReady', function () {
+            renderPluginList();
+            refreshAll();
+        });
+        MPSPlugins.boot();
+
+        fitStage();
+        setTimeout(function () {
+            fitStage();
+            updateStats();
+        }, 80);
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+
+    console.log('MPS·演示 已启动 — 在左侧编辑，右侧实时预览，可「打包」导出纯净演示。');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "id": "iframe",
+  "name": "iframe 播放器",
+  "description": "在幻灯片里嵌入第三方平台播放器：哔哩哔哩、网易云音乐（单曲 / 歌单）、YouTube、Vimeo，或任意 iframe 地址。",
+  "version": "1.0.0",
+  "author": "MPS",
+  "icon": "🎞",
+  "entry": "index.js",
+  "files": ["plugin.json", "index.js"],
+  "defaultEnabled": false,
+  "tabs": ["iframe 播放器"]
+}

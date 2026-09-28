@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0969da">
+<title>课堂投票</title>
+<style>
+    :root {
+        --bg: #f0f2f5; --card: #ffffff; --text: #1f2328; --muted: #6a737d;
+        --border: #d0d7de; --accent: #0969da; --accent-soft: #ddf4ff;
+        --ok: #1a7f37; --bad: #cf222e;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg: #101317; --card: #1c1f23; --text: #e6edf3; --muted: #8b949e;
+            --border: #3a3f46; --accent: #58a6ff; --accent-soft: #1f3a5f;
+            --ok: #3fb950; --bad: #f85149;
+        }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        min-height: 100vh; background: var(--bg); color: var(--text);
+        font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+              "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        display: flex; flex-direction: column;
+    }
+    header { padding: 14px 16px 8px; }
+    .title { font-size: 17px; font-weight: 700; }
+    .sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; flex: none; }
+    body[data-conn="on"] .dot { background: var(--ok); }
+    body[data-conn="connecting"] .dot { background: #d29922; }
+    body[data-conn="err"] .dot, body[data-conn="off"] .dot { background: var(--bad); }
+    main { flex: 1; padding: 8px 16px 24px; }
+    .card {
+        background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+        padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .q { font-size: 18px; font-weight: 600; line-height: 1.7; margin: 0 0 14px; white-space: pre-wrap; }
+    .opts { display: flex; flex-direction: column; gap: 10px; }
+    .opt {
+        display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+        padding: 13px 14px; border: 1.5px solid var(--border); border-radius: 12px;
+        background: transparent; color: var(--text); font: inherit; font-size: 16px;
+        cursor: pointer; transition: border-color .12s, background .12s;
+    }
+    .opt:active { background: var(--bg); }
+    .opt .key {
+        flex: none; width: 26px; height: 26px; line-height: 24px; text-align: center;
+        border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 700;
+        color: var(--muted); font-style: normal;
+    }
+    .opt.on { border-color: var(--accent); background: var(--accent-soft); }
+    .opt.on .key { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .opt .lab { flex: 1; min-width: 0; }
+    .opt .mark { flex: none; font-weight: 700; color: var(--ok); opacity: 0; }
+    .opt.on .mark { opacity: 1; }
+    .submit {
+        width: 100%; margin-top: 14px; padding: 13px 14px; border: 0; border-radius: 12px;
+        background: var(--accent); color: #fff; font: inherit; font-size: 16px; font-weight: 600;
+        cursor: pointer;
+    }
+    .submit:disabled { opacity: .45; }
+    .txtrow { display: flex; gap: 8px; margin-top: 4px; }
+    input[type="text"] {
+        flex: 1; min-width: 0; padding: 13px 14px; border: 1.5px solid var(--border);
+        border-radius: 12px; background: transparent; color: var(--text); font: inherit; font-size: 16px; outline: none;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    .hint { margin-top: 12px; font-size: 13px; color: var(--muted); }
+    .done { margin-top: 12px; font-size: 14px; color: var(--ok); font-weight: 600; }
+    .empty { color: var(--muted); text-align: center; padding: 28px 8px; font-size: 15px; }
+    .err { color: var(--bad); }
+    footer { padding: 0 16px 18px; font-size: 12.5px; color: var(--muted); text-align: center; }
+    .cloudwrap { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 12px; }
+    .cloudwrap span { background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; font-size: 13px; }
+</style>
+</head>
+<body data-conn="off">
+<header>
+    <div class="title" id="titleEl">课堂投票</div>
+    <div class="sub"><span class="dot"></span><span id="statusEl">正在连接…</span></div>
+</header>
+<main>
+    <div class="card" id="cardEl">
+        <div class="empty">等待老师出题…</div>
+    </div>
+</main>
+<footer id="footEl"></footer>
+
+<script src="./mqtt.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    var qs = new URLSearchParams(location.search);
+    var BROKER = qs.get('b') || '';
+    var USER = qs.get('u') || '';
+    var PASS = qs.get('p') || '';
+    var ROOM = (qs.get('r') || 'mps-poll').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40) || 'mps-poll';
+    var TITLE = qs.get('n') || '课堂投票';
+    var TP = {
+        state: 'mps/' + ROOM + '/state',
+        vote: 'mps/' + ROOM + '/vote',
+        join: 'mps/' + ROOM + '/join',
+        stats: 'mps/' + ROOM + '/stats'
+    };
+
+    var el = {
+        title: document.getElementById('titleEl'),
+        status: document.getElementById('statusEl'),
+        card: document.getElementById('cardEl'),
+        foot: document.getElementById('footEl')
+    };
+
+    // 设备标识与本地票（防止刷新后重复提示 / 便于恢复选择）
+    var did = localStorage.getItem('mps-poll-did');
+    if (!did) {
+        did = Math.random().toString(36).slice(2, 10);
+        try { localStorage.setItem('mps-poll-did', did); } catch (e) {}
+    }
+    var VOTE_KEY = 'mps-poll-vote:' + ROOM;
+    var myVote = null;
+    try { myVote = JSON.parse(localStorage.getItem(VOTE_KEY) || 'null'); } catch (e) { myVote = null; }
+
+    var state = null;        // 当前题目（来自幻灯片）
+    var persons = 0;
+    var client = null;
+    var draft = null;        // 多选：尚未提交的勾选
+
+    el.title.textContent = TITLE;
+
+    function setConn(k, text) {
+        document.body.setAttribute('data-conn', k);
+        el.status.textContent = text;
+    }
+
+    function saveVote() {
+        try { localStorage.setItem(VOTE_KEY, JSON.stringify(myVote)); } catch (e) {}
+    }
+
+    function publish(topic, payload) {
+        if (!client || !client.connected) return false;
+        try { client.publish(topic, JSON.stringify(payload), { qos: 0 }); return true; }
+        catch (e) { return false; }
+    }
+
+    function sendVote(v) {
+        if (!state) return;
+        myVote = { qid: state.qid, nonce: state.nonce, v: v, ts: Date.now() };
+        saveVote();
+        var okSent = publish(TP.vote, { v: 1, t: 'vote', did: did, qid: state.qid, nonce: state.nonce, v: v });
+        render();
+        if (!okSent) {
+            setConn('err', '尚未连接，正在重试…');
+        }
+    }
+
+    function votedThisRound() {
+        return !!(myVote && state && myVote.qid === state.qid && String(myVote.nonce) === String(state.nonce));
+    }
+
+    // 多选当前勾选：已提交用提交内容，未提交用草稿
+    function currentSel() {
+        if (votedThisRound()) {
+            return Object.prototype.toString.call(myVote.v) === '[object Array]' ? myVote.v : [];
+        }
+        return draft || [];
+    }
+
+    /* ======================= 渲染 ======================= */
+
+    function render() {
+        if (!state) {
+            el.card.innerHTML = '<div class="empty">等待老师出题…</div>';
+            return;
+        }
+        var voted = votedThisRound();
+        var esc = function (s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                return c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;';
+            });
+        };
+        var html = '<div class="q">' + esc(state.q || '') + '</div>';
+
+        if (state.kind === 'text') {
+            html += '<div class="txtrow"><input type="text" id="txtEl" maxlength="24" placeholder="输入一个词…" ' +
+                'value="' + (voted ? esc(myVote.v) : '') + '"><button class="submit" id="okBtn" style="width:auto;margin:0;flex:none;padding:13px 20px">提交</button></div>';
+            html += voted ? '<div class="done">✓ 已提交，可修改后重新提交</div>' : '<div class="hint">提交后会实时出现在大屏词云上</div>';
+        } else {
+            var opts = state.opts || [];
+            var sel = state.kind === 'multi' ? currentSel() : (voted ? [Number(myVote.v)] : []);
+            html += '<div class="opts">';
+            opts.forEach(function (o, i) {
+                var on = sel.indexOf(i) >= 0;
+                html += '<button class="opt' + (on ? ' on' : '') + '" data-i="' + i + '">' +
+                    '<i class="key">' + (state.kind === 'multi' ? '☐' : String.fromCharCode(65 + i)) + '</i>' +
+                    '<span class="lab">' + esc(o) + '</span>' +
+                    '<span class="mark">✓</span></button>';
+            });
+            html += '</div>';
+            if (state.kind === 'multi') {
+                html += '<button class="submit" id="okBtn"' + (currentSel().length ? '' : ' disabled') + '>提交</button>';
+            }
+            html += voted ? '<div class="done">✓ 已提交，可再点选项改票</div>' : '<div class="hint">' +
+                (state.kind === 'multi' ? '可多选，选好后点「提交」' : '点选项即提交，可随时改票') + '</div>';
+        }
+
+        el.card.innerHTML = html;
+        bind();
+    }
+
+    function bind() {
+        Array.prototype.forEach.call(el.card.querySelectorAll('.opt'), function (btn) {
+            btn.addEventListener('click', function () {
+                var i = Number(btn.getAttribute('data-i'));
+                if (state.kind === 'multi') {
+                    draft = currentSel().slice();
+                    var at = draft.indexOf(i);
+                    if (at >= 0) draft.splice(at, 1); else draft.push(i);
+                    render();
+                } else {
+                    sendVote(i);
+                }
+            });
+        });
+        var ok = document.getElementById('okBtn');
+        if (ok) {
+            ok.addEventListener('click', function () {
+                if (state.kind === 'multi') {
+                    sendVote(currentSel().slice());
+                } else if (state.kind === 'text') {
+                    var input = document.getElementById('txtEl');
+                    var v = (input && input.value || '').trim().slice(0, 24);
+                    if (!v) { input && input.focus(); return; }
+                    sendVote(v);
+                }
+            });
+        }
+        var txt = document.getElementById('txtEl');
+        if (txt) {
+            txt.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); ok && ok.click(); }
+            });
+        }
+    }
+
+    /* ======================= MQTT ======================= */
+
+    if (!BROKER) {
+        setConn('err', '缺少连接参数');
+        el.card.innerHTML = '<div class="empty err">未获取到连接参数<br>请重新扫描幻灯片上的二维码</div>';
+        return;
+    }
+    if (typeof mqtt === 'undefined') {
+        setConn('err', '投票页缺少 mqtt.min.js');
+        el.card.innerHTML = '<div class="empty err">未能加载 MQTT 客户端<br>请确认 mqtt.min.js 与 vote.html 在同一目录</div>';
+        return;
+    }
+
+    setConn('connecting', '正在连接…');
+    var opts = {
+        clientId: 'mpsv-' + Math.random().toString(36).slice(2, 10),
+        clean: true, keepalive: 30, reconnectPeriod: 3000, connectTimeout: 8000
+    };
+    if (USER) opts.username = USER;
+    if (PASS) opts.password = PASS;
+
+    try { client = mqtt.connect(BROKER, opts); }
+    catch (e) {
+        setConn('err', '连接失败');
+        el.card.innerHTML = '<div class="empty err">连接失败：' + String(e && e.message || e) + '</div>';
+        return;
+    }
+
+    client.on('connect', function () {
+        setConn('on', '已连接 · 房间 ' + ROOM);
+        client.subscribe([TP.state, TP.stats], { qos: 0 }, function () {});
+        publish(TP.join, { v: 1, t: 'join', did: did });
+        if (myVote && state && votedThisRound()) {
+            publish(TP.vote, { v: 1, t: 'vote', did: did, qid: myVote.qid, nonce: myVote.nonce, v: myVote.v });
+        }
+    });
+    client.on('reconnect', function () { setConn('connecting', '正在重连…'); });
+    client.on('close', function () { if (document.body.getAttribute('data-conn') === 'on') setConn('off', '连接已断开'); });
+    client.on('error', function (e) { setConn('err', '连接异常：' + String(e && e.message || e)); });
+
+    client.on('message', function (topic, payload) {
+        var msg;
+        try { msg = JSON.parse(String(payload)); } catch (e) { return; }
+        if (!msg) return;
+        if (topic === TP.state && msg.t === 'state') {
+            var changed = !state || state.qid !== msg.qid || String(state.nonce) !== String(msg.nonce);
+            state = msg;
+            if (msg.title) { TITLE = msg.title; el.title.textContent = TITLE; }
+            if (changed) { draft = null; render(); }
+            return;
+        }
+        if (topic === TP.stats && msg.t === 'stats') {
+            persons = Number(msg.n) || 0;
+            el.foot.textContent = persons ? '已有 ' + persons + ' 人参与' : '';
+        }
+    });
+})();
+</script>
+</body>
+</html>

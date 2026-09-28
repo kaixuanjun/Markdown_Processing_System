@@ -1,0 +1,2902 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>MPS·文字 - 高级Markdown编辑器</title>
+    <!-- 第三方库 -->
+    <script src="./lib/markdown-it.min.js">
+    </script>
+    <script src="./lib/markdown-it-sub.min.js">
+    </script>
+    <script src="./lib/markdown-it-sup.min.js">
+    </script>
+    <script src="./lib/markdown-it-mark.min.js">
+    </script>
+    <script src="./lib/markdown-it-multimd-table.min.js">
+    </script>
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="./lib/katex.min.css" />
+    <script src="./lib/katex.min.js">
+    </script>
+    <!-- Mermaid -->
+    <script src="./lib/mermaid.min.js">
+    </script>
+
+    <style>
+        /* ===== CSS 变量：浅色/深色主题 ===== */
+        :root {
+            --bg-body: #f0f2f5;
+            --bg-header: #ffffff;
+            --bg-toolbar: #ffffff;
+            --bg-tab: #fafbfc;
+            --bg-panel: #ffffff;
+            --bg-editor: #ffffff;
+            --bg-preview: #ffffff;
+            --text-primary: #24292f;
+            --text-secondary: #57606a;
+            --text-muted: #8b949e;
+            --border-color: #d0d7de;
+            --border-light: #e1e4e8;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            --hover-bg: #f3f4f6;
+            --active-bg: #ddf4ff;
+            --active-color: #0969da;
+            --code-bg: #f6f8fa;
+            --resizer-color: #d0d7de;
+            --resizer-active: #0969da;
+            --table-border: #8b949e;
+            --mermaid-text: #333;
+            --mermaid-line: #666;
+            --popup-bg: #ffffff;
+            --popup-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        body.dark-mode {
+            --bg-body: #1c1e21;
+            --bg-header: #2d2f33;
+            --bg-toolbar: #2d2f33;
+            --bg-tab: #222426;
+            --bg-panel: #2d2f33;
+            --bg-editor: #1e1f22;
+            --bg-preview: #1e1f22;
+            --text-primary: #e6e6e6;
+            --text-secondary: #b0b0b0;
+            --text-muted: #888888;
+            --border-color: #44474d;
+            --border-light: #3c3f44;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --hover-bg: #3c3f44;
+            --active-bg: #1f3a5f;
+            --active-color: #58a6ff;
+            --code-bg: #2d2f33;
+            --resizer-color: #44474d;
+            --resizer-active: #58a6ff;
+            --table-border: #888888;
+            --mermaid-text: #eee;
+            --mermaid-line: #aaa;
+            --popup-bg: #2d2f33;
+            --popup-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+
+        /* ===== 全局样式 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-body);
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            transition: background 0.2s, color 0.2s;
+            color: var(--text-primary);
+        }
+
+        /* 标题栏 */
+        .app-header {
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            height: 44px;
+            box-shadow: var(--shadow);
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .app-header .logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f2f5;
+        }
+        .app-header .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform: rotate(180deg);
+        }
+        .app-header .title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
+        }
+        .app-header .title .accent {
+            color: #0969da;
+        }
+        .app-header .version {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: 3px;
+            font-weight: 400;
+        }
+        .app-header .spacer {
+            flex: 1;
+        }
+        .app-header .header-status {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-tab);
+            padding: 2px 10px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        /* ===== Ribbon 工具栏 ===== */
+        .ribbon {
+            background: var(--bg-toolbar);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            box-shadow: var(--shadow);
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .ribbon-tabs {
+            display: flex;
+            padding: 6px 10px 8px;
+            gap: 4px;
+            background: var(--bg-tab);
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .ribbon-tabs button {
+            background: transparent;
+            border: none;
+            padding: 6px 15px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 7px;
+            transition: all 0.15s;
+            white-space: nowrap;
+            font-family: inherit;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .ribbon-tabs button:hover {
+            background: var(--hover-bg);
+        }
+        .ribbon-tabs button.active {
+            color: var(--active-color);
+            background: var(--active-bg);
+            font-weight: 600;
+        }
+        .ribbon-panels {
+            padding: 6px 12px;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            background: var(--bg-panel);
+            transition: background 0.2s;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            position: relative;
+        }
+        .ribbon-panel {
+            display: none;
+            width: 100%;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 10px;
+        }
+        .ribbon-panel.active {
+            display: flex;
+        }
+
+        /* ===== 所有面板按钮统一样式 ===== */
+        .ribbon-panel button,
+        .ribbon-panel select,
+        .formula-cat-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            font-family: inherit;
+            height: 36px;
+            min-width: 44px;
+            justify-content: center;
+            background: var(--bg-panel);
+        }
+        .ribbon-panel button:hover,
+        .ribbon-panel select:hover,
+        .formula-cat-btn:hover {
+            background: var(--hover-bg);
+            border-color: var(--text-muted);
+        }
+        .ribbon-panel button:active,
+        .ribbon-panel select:active,
+        .formula-cat-btn:active {
+            background: var(--border-light);
+        }
+        .ribbon-panel button.active,
+        .formula-cat-btn.active {
+            background: var(--active-bg);
+            border-color: var(--active-color);
+            color: var(--active-color);
+        }
+        .ribbon-panel select {
+            background: var(--bg-panel);
+            padding: 4px 24px 4px 10px;
+            appearance: auto;
+            font-size: 14px;
+            height: 36px;
+            min-width: 70px;
+        }
+        .ribbon-panel .icon {
+            font-size: 18px;
+            line-height: 1;
+        }
+        .ribbon-panel .label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .ribbon-panel .group-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-right: 4px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        .ribbon-panel .divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border-color);
+            margin: 0 4px;
+        }
+
+        /* ===== 浮动弹出窗口（fixed 定位） ===== */
+        .formula-popup,
+        .table-popup {
+            position: fixed;
+            background: var(--popup-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: var(--popup-shadow);
+            padding: 12px 16px;
+            display: none;
+            z-index: 9999;
+            min-width: 200px;
+            max-width: 90vw;
+            transition: background 0.2s, border-color 0.2s;
+            pointer-events: auto;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .formula-popup.open,
+        .table-popup.open {
+            display: flex;
+        }
+        .formula-popup {
+            flex-wrap: wrap;
+            flex-direction: row;
+            padding: 8px 10px;
+            gap: 4px 6px;
+        }
+        .formula-popup button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.15s;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-panel);
+            white-space: nowrap;
+            min-width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .formula-popup button:hover {
+            background: var(--hover-bg);
+            border-color: var(--active-color);
+            color: var(--active-color);
+        }
+        .formula-popup button .tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-toolbar);
+            color: var(--text-primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            border: 1px solid var(--border-color);
+            pointer-events: none;
+        }
+        .formula-popup button:hover .tooltip {
+            display: block;
+        }
+
+        /* 表格弹窗内部样式 */
+        .table-popup .popup-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: space-between;
+        }
+        .table-popup label {
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .table-popup .num-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .table-popup .num-control button {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .table-popup .num-control button:hover {
+            background: var(--hover-bg);
+        }
+        .table-popup .num-control button:active {
+            background: var(--border-light);
+        }
+        .table-popup .num-control input {
+            width: 44px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px 0;
+            font-size: 14px;
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            outline: none;
+        }
+        .table-popup .num-control input:focus {
+            border-color: var(--active-color);
+        }
+        .table-popup .popup-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 4px;
+        }
+        .table-popup .popup-actions button {
+            padding: 4px 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 14px;
+        }
+        .table-popup .popup-actions button:hover {
+            background: var(--hover-bg);
+        }
+        .table-popup .popup-actions button.primary {
+            background: var(--active-color);
+            color: #fff;
+            border-color: var(--active-color);
+        }
+        .table-popup .popup-actions button.primary:hover {
+            opacity: 0.85;
+        }
+
+        /* ===== 主体 ===== */
+        .main {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            overflow: hidden;
+            background: var(--bg-body);
+            padding: 6px;
+            gap: 0;
+            transition: background 0.2s, flex-direction 0.2s;
+        }
+        .editor-panel {
+            flex: 1 1 50%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-editor);
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
+            margin-right: 0;
+            transition: background 0.2s;
+        }
+        .preview-panel {
+            flex: 1 1 50%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-preview);
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-left: 0;
+            transition: background 0.2s;
+        }
+        .resizer {
+            flex-shrink: 0;
+            width: 8px;
+            background: transparent;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: background 0.2s, width 0.2s, height 0.2s;
+            margin: 0 2px;
+        }
+        .resizer:hover,
+        .resizer.active {
+            background: var(--resizer-color);
+        }
+        .resizer::after {
+            content: '';
+            display: block;
+            width: 3px;
+            height: 30px;
+            background: var(--text-muted);
+            border-radius: 2px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .resizer:hover::after,
+        .resizer.active::after {
+            opacity: 1;
+            background: var(--resizer-active);
+        }
+
+        /* 上下分屏时调整分隔条 */
+        .main.split-vertical {
+            flex-direction: column;
+        }
+        .main.split-vertical .resizer {
+            width: 100%;
+            height: 8px;
+            cursor: row-resize;
+            margin: 2px 0;
+        }
+        .main.split-vertical .resizer::after {
+            width: 30px;
+            height: 3px;
+        }
+
+        /* 面板头部 */
+        .editor-panel .panel-header,
+        .preview-panel .panel-header {
+            padding: 6px 12px;
+            background: var(--bg-tab);
+            border-bottom: 1px solid var(--border-light);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            height: 32px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .editor-panel textarea {
+            flex: 1;
+            min-height: 0;
+            border: none;
+            padding: 12px 14px;
+            font-size: 14px;
+            line-height: 1.7;
+            font-family: 'Consolas', 'Courier New', monospace;
+            resize: none;
+            outline: none;
+            background: var(--bg-editor);
+            color: var(--text-primary);
+            tab-size: 4;
+            transition: background 0.2s, color 0.2s;
+        }
+        .preview-content {
+            flex: 1;
+            min-height: 0;
+            padding: 12px 16px;
+            overflow-y: auto;
+            background: var(--bg-preview);
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.7;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        /* ===== 预览样式 ===== */
+        .preview-content h1,
+        .preview-content h2 {
+            border-bottom-color: var(--border-color);
+        }
+        .preview-content blockquote {
+            margin: 0 0 12px 0;
+            padding: 0 1em;
+            color: var(--text-secondary);
+            border-left: 0.25em solid var(--border-color);
+        }
+        .preview-content blockquote blockquote {
+            margin-left: 1.5em;
+            border-left-color: var(--text-muted);
+        }
+        .preview-content blockquote blockquote blockquote {
+            margin-left: 2em;
+            border-left-color: var(--text-muted);
+        }
+        .preview-content code {
+            background: var(--code-bg);
+            color: var(--text-primary);
+        }
+        .preview-content pre {
+            background: var(--code-bg);
+        }
+        .preview-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .preview-content table th,
+        .preview-content table td {
+            border: 2px solid var(--table-border);
+            padding: 6px 10px;
+        }
+        .preview-content table th {
+            background: var(--code-bg);
+            font-weight: 600;
+        }
+        .preview-content hr {
+            background: var(--border-color);
+        }
+        .preview-content ul ul,
+        .preview-content ul ol,
+        .preview-content ol ul,
+        .preview-content ol ol {
+            padding-left: 2em;
+            margin-top: 0;
+        }
+        .preview-content li {
+            margin-top: 0.2em;
+        }
+        .preview-content .task-list-item {
+            list-style: none;
+        }
+        .preview-content .task-list-item input[type="checkbox"] {
+            margin-right: 0.5em;
+            vertical-align: middle;
+            pointer-events: none;
+        }
+        .preview-content .katex-display {
+            display: block;
+            margin: 0.8em 0;
+            text-align: center;
+        }
+        .preview-content .mermaid {
+            text-align: center;
+            margin: 0.8em 0;
+        }
+
+        /* 暗色模式 Mermaid 覆盖 */
+        body.dark-mode .preview-content .mermaid svg {
+            background: transparent;
+        }
+        body.dark-mode .preview-content .mermaid .node rect,
+        body.dark-mode .preview-content .mermaid .node circle,
+        body.dark-mode .preview-content .mermaid .node ellipse,
+        body.dark-mode .preview-content .mermaid .node polygon,
+        body.dark-mode .preview-content .mermaid .node path {
+            stroke: #aaa;
+            stroke-width: 1.5px;
+        }
+        body.dark-mode .preview-content .mermaid .node .label {
+            color: #eee !important;
+            fill: #eee !important;
+        }
+        body.dark-mode .preview-content .mermaid .edgePath .path {
+            stroke: #aaa !important;
+            stroke-width: 1.5px;
+        }
+        body.dark-mode .preview-content .mermaid .edgeLabel {
+            color: #ddd !important;
+            background: transparent !important;
+        }
+        body.dark-mode .preview-content .mermaid .cluster rect {
+            stroke: #888 !important;
+        }
+        body.dark-mode .preview-content .mermaid .cluster .label {
+            color: #ccc !important;
+            fill: #ccc !important;
+        }
+        body.dark-mode .preview-content .mermaid .note {
+            color: #ddd !important;
+            fill: #ddd !important;
+        }
+        body.dark-mode .preview-content .mermaid .actor {
+            stroke: #aaa !important;
+            fill: #2d2f33 !important;
+        }
+        body.dark-mode .preview-content .mermaid .actor .label {
+            color: #eee !important;
+            fill: #eee !important;
+        }
+        body.dark-mode .preview-content .mermaid .actor-line {
+            stroke: #888 !important;
+        }
+        body.dark-mode .preview-content .mermaid .messageLine0,
+        body.dark-mode .preview-content .mermaid .messageLine1 {
+            stroke: #aaa !important;
+        }
+        body.dark-mode .preview-content .mermaid .messageText {
+            color: #eee !important;
+            fill: #eee !important;
+        }
+        body.dark-mode .preview-content .mermaid .loopLine {
+            stroke: #888 !important;
+        }
+        body.dark-mode .preview-content .mermaid .loopText {
+            color: #ccc !important;
+            fill: #ccc !important;
+        }
+        body.dark-mode .preview-content .mermaid .task {
+            stroke: #aaa !important;
+        }
+        body.dark-mode .preview-content .mermaid .task .label {
+            color: #eee !important;
+            fill: #eee !important;
+        }
+        body.dark-mode .preview-content .mermaid .taskText {
+            color: #eee !important;
+            fill: #eee !important;
+        }
+        body.dark-mode .preview-content .mermaid .taskTextOutside {
+            color: #ccc !important;
+            fill: #ccc !important;
+        }
+        body.dark-mode .preview-content .mermaid .grid .tick {
+            stroke: #555 !important;
+        }
+        body.dark-mode .preview-content .mermaid .grid .tick text {
+            color: #aaa !important;
+            fill: #aaa !important;
+        }
+        body.dark-mode .preview-content .mermaid .today {
+            stroke: #f44 !important;
+        }
+        body.dark-mode .preview-content .mermaid .label,
+        body.dark-mode .preview-content .mermaid .label text,
+        body.dark-mode .preview-content .mermaid .actor .label,
+        body.dark-mode .preview-content .mermaid .taskText,
+        body.dark-mode .preview-content .mermaid .taskTextOutside,
+        body.dark-mode .preview-content .mermaid .messageText,
+        body.dark-mode .preview-content .mermaid .loopText,
+        body.dark-mode .preview-content .mermaid .note .label {
+            color: #eee !important;
+            fill: #eee !important;
+        }
+
+        /* 状态栏 */
+        .statusbar {
+            background: var(--bg-header);
+            border-top: 1px solid var(--border-color);
+            padding: 2px 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            height: 28px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .statusbar .right {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* 自动接续提示 */
+        #auto-continue-tip {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            padding: 4px 10px 4px 14px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-primary);
+            z-index: 10;
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+            background: var(--bg-panel);
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #auto-continue-tip .tip-text {
+            white-space: nowrap;
+        }
+        #auto-continue-tip .tip-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 2px;
+            line-height: 1;
+            transition: color 0.15s;
+        }
+        #auto-continue-tip .tip-close:hover {
+            color: #d73a49;
+        }
+        #fileInput {
+            display: none;
+        }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 820px) {
+            .main {
+                padding: 4px;
+                gap: 0;
+            }
+            .editor-panel {
+                flex: 1 1 50%;
+                margin-right: 0;
+                min-height: 30vh;
+            }
+            .preview-panel {
+                flex: 1 1 50%;
+                margin-left: 0;
+                min-height: 30vh;
+            }
+            .ribbon-tabs button {
+                padding: 4px 12px;
+                font-size: 12px;
+                height: 30px;
+            }
+            .ribbon-panels {
+                padding: 4px 8px;
+                min-height: 48px;
+                max-height: calc(100vh - 160px);
+            }
+            .ribbon-panel button,
+            .ribbon-panel select,
+            .formula-cat-btn {
+                padding: 4px 8px;
+                font-size: 13px;
+                height: 32px;
+                min-width: 36px;
+            }
+            .ribbon-panel .icon {
+                font-size: 16px;
+            }
+            .ribbon-panel .label {
+                font-size: 12px;
+            }
+            .ribbon-panel .divider {
+                height: 22px;
+                margin: 0 2px;
+            }
+            .app-header {
+                height: 38px;
+                padding: 4px 10px;
+            }
+            .app-header .title {
+                font-size: 14px;
+            }
+            .app-header .logo {
+                width: 24px;
+                height: 24px;
+            }
+            .statusbar {
+                height: 24px;
+                font-size: 10px;
+                padding: 1px 8px;
+            }
+            .editor-panel .panel-header,
+            .preview-panel .panel-header {
+                height: 28px;
+                padding: 4px 10px;
+                font-size: 11px;
+            }
+            .editor-panel textarea {
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+            .preview-content {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            #auto-continue-tip {
+                top: 4px;
+                right: 4px;
+                padding: 3px 8px 3px 10px;
+                font-size: 11px;
+                gap: 6px;
+            }
+            #auto-continue-tip .tip-close {
+                font-size: 12px;
+            }
+            .formula-popup,
+            .table-popup {
+                max-width: 85vw;
+            }
+            .formula-popup {
+                padding: 6px 8px;
+            }
+            .formula-popup button {
+                font-size: 14px;
+                height: 28px;
+                min-width: 28px;
+                padding: 2px 6px;
+            }
+            .table-popup {
+                padding: 10px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ribbon-tabs button {
+                padding: 2px 8px;
+                font-size: 11px;
+                height: 26px;
+            }
+            .ribbon-panel button,
+            .ribbon-panel select,
+            .formula-cat-btn {
+                padding: 2px 6px;
+                font-size: 12px;
+                height: 28px;
+                min-width: 30px;
+            }
+            .ribbon-panel .icon {
+                font-size: 14px;
+            }
+            .ribbon-panel .label {
+                font-size: 11px;
+            }
+            .ribbon-panels {
+                padding: 2px 4px;
+                min-height: 40px;
+                max-height: calc(100vh - 140px);
+                gap: 4px;
+            }
+            .ribbon-panel {
+                gap: 4px;
+            }
+            .ribbon-panel .divider {
+                height: 18px;
+                margin: 0 1px;
+            }
+            .main {
+                padding: 2px;
+            }
+            .editor-panel textarea {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+            .preview-content {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+            .app-header .version {
+                display: none;
+            }
+            .statusbar .right {
+                gap: 6px;
+            }
+            .formula-popup,
+            .table-popup {
+                max-width: 80vw;
+            }
+            .formula-popup button {
+                font-size: 12px;
+                height: 24px;
+                min-width: 24px;
+                padding: 1px 4px;
+            }
+            .table-popup .num-control input {
+                width: 32px;
+            }
+        }
+
+        .editor-panel,
+        .preview-panel {
+            -webkit-flex: 1 1 50%;
+            -ms-flex: 1 1 50%;
+            flex: 1 1 50%;
+        }
+        .editor-panel textarea,
+        .preview-content {
+            -webkit-flex: 1;
+            -ms-flex: 1;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 标题栏 ===== -->
+    <header class="app-header">
+        <div class="logo">
+            <img src="./lib/logo.png" alt="MPS Logo" />
+        </div>
+        <div class="title">
+            MPS<span class="accent">·</span>文字
+            <span class="version">v2.0</span>
+        </div>
+        <div class="spacer"></div>
+        <span class="header-status">● 就绪</span>
+    </header>
+
+    <!-- ===== Ribbon 工具栏 ===== -->
+    <div class="ribbon">
+        <div class="ribbon-tabs" id="ribbonTabs">
+            <button class="active" data-tab="tab-file">文件</button>
+            <button data-tab="tab-start">开始</button>
+            <button data-tab="tab-insert">插入</button>
+            <button data-tab="tab-formula">公式</button>
+            <button data-tab="tab-view">视图</button>
+        </div>
+        <div class="ribbon-panels">
+            <!-- 文件面板 -->
+            <div class="ribbon-panel active" id="tab-file">
+                <button id="newBtn" title="新建 (Ctrl+N)"><span class="icon">📄</span><span class="label">新建</span></button>
+                <button id="openFileBtn" title="打开 (Ctrl+O)"><span class="icon">📂</span><span class="label">打开</span></button>
+                <button id="saveFileBtn" title="保存 (Ctrl+S)"><span class="icon">💾</span><span class="label">保存</span></button>
+                <button id="loadExampleBtn" title="加载示例"><span class="icon">📋</span><span class="label">示例</span></button>
+            </div>
+
+            <!-- 开始面板 -->
+            <div class="ribbon-panel" id="tab-start">
+                <span class="group-label">样式</span>
+                <select id="headingSelect" title="标题样式">
+                    <option value="p">正文</option>
+                    <option value="h1">H1</option>
+                    <option value="h2">H2</option>
+                    <option value="h3">H3</option>
+                    <option value="h4">H4</option>
+                    <option value="h5">H5</option>
+                    <option value="h6">H6</option>
+                </select>
+                <div class="divider"></div>
+                <span class="group-label">字体</span>
+                <button id="boldBtn" title="粗体 (Ctrl+B)"><span class="icon">𝐁</span><span class="label">粗体</span></button>
+                <button id="italicBtn" title="斜体 (Ctrl+I)"><span class="icon">𝑰</span><span class="label">斜体</span></button>
+                <button id="strikeBtn" title="删除线"><span class="icon">~~</span><span class="label">删除线</span></button>
+                <button id="markBtn" title="高亮"><span class="icon">🖍️</span><span class="label">高亮</span></button>
+                <button id="supBtn" title="上标 (公式内自动 LaTeX)"><span class="icon">x²</span><span class="label">上标</span></button>
+                <button id="subBtn" title="下标 (公式内自动 LaTeX)"><span class="icon">x₂</span><span class="label">下标</span></button>
+                <div class="divider"></div>
+                <span class="group-label">段落</span>
+                <button id="ulBtn" title="无序列表"><span class="icon">•</span><span class="label">列表</span></button>
+                <button id="olBtn" title="有序列表"><span class="icon">1.</span><span class="label">编号</span></button>
+                <button id="taskBtn" title="任务列表"><span class="icon">☑</span><span class="label">任务</span></button>
+                <button id="taskToggleBtn" title="切换任务完成状态"><span class="icon">✔</span><span class="label">切换</span></button>
+                <button id="quoteBtn" title="引用"><span class="icon">❝</span><span class="label">引用</span></button>
+                <button id="nestedQuoteBtn" title="嵌套引用"><span class="icon">>></span><span class="label">嵌套</span></button>
+                <button id="indentBtn" title="列表子项（缩进）"><span class="icon">⇥</span><span class="label">缩进</span></button>
+                <button id="autoContinueBtn" title="自动接续列表/编号/任务" class="active"><span class="icon">↻</span><span class="label">自动接续</span></button>
+            </div>
+
+            <!-- 插入面板 -->
+            <div class="ribbon-panel" id="tab-insert">
+                <span class="group-label">图表</span>
+                <button id="tableBtn" title="插入表格"><span class="icon">⊞</span><span class="label">表格</span></button>
+                <select id="tableAlignSelect" title="表格对齐方式">
+                    <option value="left">左对齐</option>
+                    <option value="center">居中</option>
+                    <option value="right">右对齐</option>
+                </select>
+                <button id="applyTableAlignBtn" title="应用对齐到当前列"><span class="icon">↹</span><span class="label">应用</span></button>
+                <button id="flowchartBtn" title="流程图 (Mermaid)"><span class="icon">↗</span><span class="label">流程图</span></button>
+                <button id="sequenceBtn" title="时序图 (Mermaid)"><span class="icon">⟷</span><span class="label">时序图</span></button>
+                <button id="ganttBtn" title="甘特图 (Mermaid)"><span class="icon">📊</span><span class="label">甘特图</span></button>
+                <div class="divider"></div>
+                <span class="group-label">代码</span>
+                <button id="codeBtn" title="行内代码"><span class="icon">{ }</span><span class="label">行内代码</span></button>
+                <button id="codeBlockBtn" title="代码块"><span class="icon">▍▍</span><span class="label">代码块</span></button>
+                <div class="divider"></div>
+                <span class="group-label">链接</span>
+                <button id="linkBtn" title="插入链接 (Ctrl+K)"><span class="icon">🔗</span><span class="label">链接</span></button>
+                <button id="imageBtn" title="插入图片"><span class="icon">🖼️</span><span class="label">图片</span></button>
+                <div class="divider"></div>
+                <span class="group-label">公式</span>
+                <button id="inlineMathBtn" title="行内公式 (LaTeX)"><span class="icon">∑</span><span class="label">行内公式</span></button>
+                <button id="blockMathBtn" title="块级公式 (LaTeX)"><span class="icon">∫</span><span class="label">块级公式</span></button>
+            </div>
+
+            <!-- 公式面板 -->
+            <div class="ribbon-panel" id="tab-formula">
+                <button class="formula-cat-btn" data-cat="frac">分数与导数</button>
+                <button class="formula-cat-btn" data-cat="super">上下标</button>
+                <button class="formula-cat-btn" data-cat="large">大型运算符</button>
+                <button class="formula-cat-btn" data-cat="lim">极限与对数</button>
+                <button class="formula-cat-btn" data-cat="trig">三角与双曲</button>
+                <button class="formula-cat-btn" data-cat="greek">希腊字母</button>
+                <button class="formula-cat-btn" data-cat="accents">重音符号</button>
+                <button class="formula-cat-btn" data-cat="others">其它符号</button>
+            </div>
+
+            <!-- 视图面板 -->
+            <div class="ribbon-panel" id="tab-view">
+                <span class="group-label">分屏</span>
+                <button id="splitHorizontalBtn" title="左右分屏" class="active">左右</button>
+                <button id="splitVerticalBtn" title="上下分屏">上下</button>
+                <div class="divider"></div>
+                <button id="lightModeBtn" title="浅色模式" class="active"><span class="icon">☀️</span><span class="label">浅色</span></button>
+                <button id="darkModeBtn" title="深色模式"><span class="icon">🌙</span><span class="label">深色</span></button>
+                <div class="divider"></div>
+                <button id="syncScrollBtn" title="同步滚动" class="active"><span class="icon">📌</span><span class="label">同步滚动</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 浮动弹出窗口 ===== -->
+    <div class="formula-popup" id="formulaPopup"></div>
+    <div class="table-popup" id="tablePopup"></div>
+
+    <!-- ===== 主体 ===== -->
+    <div class="main" id="mainContainer">
+        <div class="editor-panel" id="editorPanel">
+            <div class="panel-header">
+                <span>📝 编辑</span>
+                <span style="font-weight:400; font-size:11px; color:var(--text-muted);">
+                    <span id="wordCount">0</span> 字 · <span id="lineCount">1</span> 行
+                </span>
+            </div>
+            <textarea id="editor" placeholder="在此输入 Markdown 内容..."></textarea>
+            <div id="auto-continue-tip">
+                <span class="tip-text">↻ 自动接续</span>
+                <button class="tip-close" id="tipCloseBtn" title="隐藏提示">✕</button>
+            </div>
+            <input type="file" id="fileInput" accept=".md,.markdown,.txt" />
+        </div>
+        <div class="resizer" id="resizer"></div>
+        <div class="preview-panel" id="previewPanel">
+            <div class="panel-header">
+                <span>👁 预览</span>
+                <span class="badge">实时</span>
+            </div>
+            <div class="preview-content" id="preview"></div>
+        </div>
+    </div>
+
+    <!-- ===== 状态栏 ===== -->
+    <div class="statusbar">
+        <span id="statusLeft">就绪</span>
+        <div class="right">
+            <span id="cursorPos">行 1, 列 1</span>
+            <span>|</span>
+            <span>MD</span>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ========== 初始化 Markdown-it ==========
+            const md = window.markdownit({
+                html: true,
+                linkify: true,
+                typographer: true,
+                breaks: true
+            });
+
+            // 加载插件（不含 task-lists）
+            try {
+                md.use(window.markdownitSub);
+                md.use(window.markdownitSup);
+                md.use(window.markdownitMark);
+                md.use(window.markdownitMultimdTable, {
+                    multiline: true,
+                    rowspan: true,
+                    headerless: true,
+                    multibody: true,
+                    aotolabel: true
+                });
+            } catch (e) {
+                console.warn('插件加载警告:', e);
+            }
+
+            // 自定义 fence 渲染 mermaid
+            const origFence = md.renderer.rules.fence || function(tokens, idx, options, env, self) {
+                return self.renderToken(tokens, idx, options);
+            };
+            md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+                const token = tokens[idx];
+                const info = token.info.trim();
+                if (info === 'mermaid') {
+                    return `<div class="mermaid">${token.content}</div>`;
+                }
+                return origFence(tokens, idx, options, env, self);
+            };
+
+            // ========== DOM 引用 ==========
+            const editor = document.getElementById('editor');
+            const preview = document.getElementById('preview');
+            const wordCount = document.getElementById('wordCount');
+            const lineCount = document.getElementById('lineCount');
+            const cursorPos = document.getElementById('cursorPos');
+            const statusLeft = document.getElementById('statusLeft');
+            const autoContinueTip = document.getElementById('auto-continue-tip');
+            const tipCloseBtn = document.getElementById('tipCloseBtn');
+            const fileInput = document.getElementById('fileInput');
+            const resizer = document.getElementById('resizer');
+            const editorPanel = document.getElementById('editorPanel');
+            const previewPanel = document.getElementById('previewPanel');
+            const mainContainer = document.getElementById('mainContainer');
+            const formulaPopup = document.getElementById('formulaPopup');
+            const tablePopup = document.getElementById('tablePopup');
+
+            let autoContinueEnabled = true;
+            let syncScrollEnabled = true;
+            let isDarkMode = false;
+            let splitMode = 'horizontal';
+            let skipSyncScroll = false;
+            let isRendering = false;
+            let syncScrollTimer = null;
+            let activePopupCategory = null;
+
+            // ========== 示例文档 ==========
+            // 正文独立在 ./example/example_editor.md，改示例不用动代码。
+            // 兜底：file:// 直开时浏览器会拦截 fetch，此时只给一段简短提示。
+            const SAMPLE_FALLBACK =
+                `# 欢迎使用 MPS·文字 Markdown 编辑器
+
+未能从 \`./example/example_editor.md\` 读取完整示例（请通过 HTTP 打开本页，例如 \`python -m http.server\`）。
+
+编辑器本身完全可用：直接在左侧输入 Markdown，右侧即时预览。`;
+
+            let sampleCache = null;
+
+            function loadSample() {
+                if (sampleCache) return Promise.resolve(sampleCache);
+                return fetch('./example/example_editor.md', { cache: 'no-cache' }).then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.text();
+                }).then(function (text) {
+                    sampleCache = text;
+                    return text;
+                }).catch(function (e) {
+                    statusLeft.textContent = '⚠ 未能载入 example_editor.md（' + e.message + '），已改用内置简易示例';
+                    return SAMPLE_FALLBACK;
+                });
+            }
+
+            // ========== 任务列表渲染 ==========
+            function renderTaskLists(html) {
+                return html.replace(/<li>(.*?)<\/li>/gs, function(match, content) {
+                    const text = content.replace(/<[^>]*>/g, '').trim();
+                    const m = text.match(/^\[([ x])\]\s+(.*)/);
+                    if (m) {
+                        const checked = m[1] === 'x';
+                        const taskText = m[2];
+                        return `<li class="task-list-item"><input type="checkbox" ${checked ? 'checked' : ''} disabled style="pointer-events:none;"> ${taskText}</li>`;
+                    }
+                    return match;
+                });
+            }
+
+            // ========== 检测是否在公式内部 ==========
+            function isInsideMath() {
+                const pos = editor.selectionStart;
+                const text = editor.value;
+                let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+                const beforeLine = text.substring(lineStart, pos);
+                const dollarCount = (beforeLine.match(/\$/g) || []).length;
+                if (dollarCount % 2 === 1) return true;
+                const beforeAll = text.substring(0, pos);
+                const lastBlockStart = beforeAll.lastIndexOf('$$');
+                if (lastBlockStart !== -1) {
+                    const afterBlock = text.substring(lastBlockStart + 2, pos);
+                    if (!afterBlock.includes('$$')) return true;
+                }
+                return false;
+            }
+
+            // ========== 渲染主函数 ==========
+            function render() {
+                isRendering = true;
+                try {
+                    const raw = editor.value;
+                    let placeholderIndex = 0;
+                    const placeholders = [];
+
+                    let processed = raw.replace(/\$\$([\s\S]+?)\$\$/g, function(match, content) {
+                        const placeholder = `<!--MATH_BLOCK_${placeholderIndex}-->`;
+                        placeholders.push({ type: 'block', content: content.trim(), placeholder: placeholder });
+                        placeholderIndex++;
+                        return placeholder;
+                    });
+
+                    processed = processed.replace(/\$([^\$]+?)\$/g, function(match, content) {
+                        if (match.startsWith('<!--MATH')) return match;
+                        const placeholder = `<!--MATH_INLINE_${placeholderIndex}-->`;
+                        placeholders.push({ type: 'inline', content: content.trim(), placeholder: placeholder });
+                        placeholderIndex++;
+                        return placeholder;
+                    });
+
+                    let html = md.render(processed);
+
+                    placeholders.forEach(p => {
+                        let rendered;
+                        try {
+                            if (p.type === 'block') {
+                                rendered = katex.renderToString(p.content, {
+                                    displayMode: true,
+                                    throwOnError: false
+                                });
+                            } else {
+                                rendered = katex.renderToString(p.content, {
+                                    displayMode: false,
+                                    throwOnError: false
+                                });
+                            }
+                        } catch (e) {
+                            rendered = p.type === 'block' ? `$$${p.content}$$` : `$${p.content}$`;
+                        }
+                        const regex = new RegExp(p.placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                        html = html.replace(regex, rendered);
+                    });
+
+                    html = renderTaskLists(html);
+
+                    preview.innerHTML = html;
+
+                    if (window.mermaid) {
+                        try {
+                            mermaid.initialize({ startOnLoad: false });
+                            const els = preview.querySelectorAll('.mermaid');
+                            if (els.length) {
+                                mermaid.run({ nodes: els, suppressErrors: true }).catch(e => console.warn(e));
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+
+                    const text = raw.replace(/\s/g, '');
+                    wordCount.textContent = text.length;
+                    const lines = raw.split('\n');
+                    lineCount.textContent = lines.length;
+                } finally {
+                    isRendering = false;
+                }
+            }
+
+            function updateCursor() {
+                const pos = editor.selectionStart;
+                const text = editor.value.substring(0, pos);
+                const lines = text.split('\n');
+                const row = lines.length;
+                const col = lines[lines.length - 1].length + 1;
+                cursorPos.textContent = `行 ${row}, 列 ${col}`;
+            }
+
+            // ========== 辅助函数 ==========
+            function insertAtCursor(text, selectLen = 0) {
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const before = editor.value.substring(0, start);
+                const after = editor.value.substring(end);
+                editor.value = before + text + after;
+                const newPos = start + text.length;
+                if (selectLen > 0) {
+                    editor.selectionStart = newPos - selectLen;
+                    editor.selectionEnd = newPos;
+                } else {
+                    editor.selectionStart = editor.selectionEnd = newPos;
+                }
+                editor.focus();
+                render();
+                updateCursor();
+            }
+
+            function wrapSelection(before, after) {
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const selected = editor.value.substring(start, end);
+                const newText = before + selected + after;
+                editor.value = editor.value.substring(0, start) + newText + editor.value.substring(end);
+                const newStart = start + before.length;
+                const newEnd = newStart + selected.length;
+                editor.selectionStart = newStart;
+                editor.selectionEnd = newEnd;
+                editor.focus();
+                render();
+                updateCursor();
+            }
+
+            function hasSelection() {
+                return editor.selectionStart !== editor.selectionEnd;
+            }
+
+            function getSelected() {
+                return editor.value.substring(editor.selectionStart, editor.selectionEnd);
+            }
+
+            // ========== 链接和图片功能 ==========
+            function insertLink() {
+                const selected = getSelected();
+                if (selected) {
+                    const url = prompt('请输入链接地址:', 'https://');
+                    if (url) {
+                        wrapSelection('[', `](${url})`);
+                        pushHistory();
+                    }
+                } else {
+                    const text = prompt('请输入链接文字:', '链接文本');
+                    if (text !== null) {
+                        const url = prompt('请输入链接地址:', 'https://');
+                        if (url) {
+                            insertAtCursor(`[${text}](${url})`);
+                            pushHistory();
+                        }
+                    }
+                }
+            }
+
+            function insertImage() {
+                const alt = prompt('请输入图片描述:', '图片');
+                if (alt !== null) {
+                    const url = prompt('请输入图片地址:', 'https://');
+                    if (url) {
+                        insertAtCursor(`![${alt}](${url})`);
+                        pushHistory();
+                    }
+                }
+            }
+
+            // ========== 切换样式 ==========
+            function toggleStyle(marker) {
+                const mLen = marker.length;
+                let start = editor.selectionStart;
+                let end = editor.selectionEnd;
+                const text = editor.value;
+                const inside = isInsideMath();
+
+                if ((marker === '^' || marker === '~') && inside) {
+                    const wrapChar = marker === '^' ? '^' : '_';
+                    if (start !== end) {
+                        const selected = text.substring(start, end);
+                        const wrapped = wrapChar + '{' + selected + '}';
+                        editor.value = text.substring(0, start) + wrapped + text.substring(end);
+                        const newStart = start + wrapChar.length + 1;
+                        const newEnd = newStart + selected.length;
+                        editor.selectionStart = newStart;
+                        editor.selectionEnd = newEnd;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        return;
+                    } else {
+                        const wrapped = wrapChar + '{}';
+                        editor.value = text.substring(0, start) + wrapped + text.substring(start);
+                        const newPos = start + wrapChar.length + 1;
+                        editor.selectionStart = editor.selectionEnd = newPos;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        return;
+                    }
+                }
+
+                // 通用切换
+                if (start === end) {
+                    const pos = start;
+                    let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+                    let lineEnd = text.indexOf('\n', pos);
+                    if (lineEnd === -1) lineEnd = text.length;
+                    const line = text.substring(lineStart, lineEnd);
+                    const titleMatch = line.match(/^(\s*)(#{1,6})\s+(.*)/);
+                    if (titleMatch) {
+                        const prefix = titleMatch[1] + titleMatch[2] + ' ';
+                        const titleContent = titleMatch[3];
+                        if (titleContent.length > 0) {
+                            const contentStart = lineStart + prefix.length;
+                            const contentEnd = lineStart + line.length;
+                            const selected = titleContent;
+                            const newText = marker + selected + marker;
+                            editor.value = text.substring(0, contentStart) + newText + text.substring(contentEnd);
+                            const newStart = contentStart + marker.length;
+                            const newEnd = newStart + selected.length;
+                            editor.selectionStart = newStart;
+                            editor.selectionEnd = newEnd;
+                            editor.focus();
+                            render();
+                            updateCursor();
+                            return;
+                        }
+                    }
+                }
+
+                start = editor.selectionStart;
+                end = editor.selectionEnd;
+                if (start !== end) {
+                    const selected = text.substring(start, end);
+                    if (selected.startsWith(marker) && selected.endsWith(marker)) {
+                        const inner = selected.substring(mLen, selected.length - mLen);
+                        editor.value = text.substring(0, start) + inner + text.substring(end);
+                        editor.selectionStart = start;
+                        editor.selectionEnd = start + inner.length;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        return;
+                    }
+                    const before = text.substring(start - mLen, start);
+                    const after = text.substring(end, end + mLen);
+                    if (before === marker && after === marker) {
+                        const newText = text.substring(0, start - mLen) + selected + text.substring(end + mLen);
+                        editor.value = newText;
+                        editor.selectionStart = start - mLen;
+                        editor.selectionEnd = start - mLen + selected.length;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        return;
+                    }
+                    const wrapped = marker + selected + marker;
+                    editor.value = text.substring(0, start) + wrapped + text.substring(end);
+                    editor.selectionStart = start + mLen;
+                    editor.selectionEnd = start + mLen + selected.length;
+                    editor.focus();
+                    render();
+                    updateCursor();
+                    return;
+                }
+
+                const pos = start;
+                let left = -1,
+                    right = -1;
+                let i = pos - mLen;
+                while (i >= 0) {
+                    if (text.substring(i, i + mLen) === marker) { left = i; break; }
+                    i--;
+                }
+                let j = pos;
+                while (j + mLen <= text.length) {
+                    if (text.substring(j, j + mLen) === marker) { right = j; break; }
+                    j++;
+                }
+                if (left !== -1 && right !== -1 && left < right) {
+                    const between = text.substring(left + mLen, right);
+                    if (!between.includes(marker) && pos >= left + mLen && pos <= right) {
+                        const beforePart = text.substring(0, left);
+                        const middle = text.substring(left + mLen, right);
+                        const afterPart = text.substring(right + mLen);
+                        editor.value = beforePart + middle + afterPart;
+                        editor.selectionStart = editor.selectionEnd = left + middle.length;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        return;
+                    }
+                }
+                const newText = text.substring(0, pos) + marker + marker + text.substring(pos);
+                editor.value = newText;
+                editor.selectionStart = editor.selectionEnd = pos + mLen;
+                editor.focus();
+                render();
+                updateCursor();
+            }
+
+            // ========== 代码块功能 ==========
+            function insertCodeBlock() {
+                if (hasSelection()) {
+                    wrapSelection('```\n', '\n```');
+                } else {
+                    insertAtCursor('```\n\n```');
+                    const pos = editor.selectionStart - 4;
+                    editor.selectionStart = editor.selectionEnd = pos;
+                    editor.focus();
+                }
+                pushHistory();
+            }
+
+            // ========== 其他功能 ==========
+            function handleEnter(e) {
+                if (!autoContinueEnabled) return;
+                const text = editor.value;
+                const pos = editor.selectionStart;
+                let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+                let lineEnd = text.indexOf('\n', pos);
+                if (lineEnd === -1) lineEnd = text.length;
+                const line = text.substring(lineStart, lineEnd);
+
+                const taskMatch = line.match(/^(\s*)- \[[ x]\]\s+(.*)/);
+                const olMatch = line.match(/^(\s*)(\d+)\.\s+(.*)/);
+                const ulMatch = line.match(/^(\s*)([-*+])\s+(.*)/);
+
+                let newPrefix = '';
+                if (taskMatch) {
+                    newPrefix = taskMatch[1] + '- [ ] ';
+                } else if (olMatch) {
+                    const num = parseInt(olMatch[2], 10);
+                    newPrefix = olMatch[1] + (num + 1) + '. ';
+                } else if (ulMatch) {
+                    newPrefix = ulMatch[1] + ulMatch[2] + ' ';
+                } else {
+                    return;
+                }
+
+                e.preventDefault();
+                const insertPos = lineEnd;
+                const before = text.substring(0, insertPos);
+                const after = text.substring(insertPos);
+                const newLine = '\n' + newPrefix;
+                editor.value = before + newLine + after;
+                editor.selectionStart = editor.selectionEnd = insertPos + newLine.length;
+                editor.focus();
+                render();
+                updateCursor();
+                if (autoContinueEnabled) autoContinueTip.style.display = 'flex';
+                statusLeft.textContent = '已自动接续';
+            }
+
+            function toggleTask() {
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                let lineEnd = editor.value.indexOf('\n', pos);
+                if (lineEnd === -1) lineEnd = editor.value.length;
+                const line = editor.value.substring(lineStart, lineEnd);
+                const match = line.match(/^(\s*)- \[([ x])\]\s+(.*)/);
+                if (!match) { statusLeft.textContent = '当前行不是任务'; return; }
+                const newState = match[2] === ' ' ? 'x' : ' ';
+                const newLine = match[1] + '- [' + newState + '] ' + match[3];
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineEnd);
+                editor.value = before + newLine + after;
+                editor.selectionStart = editor.selectionEnd = lineStart + newLine.length;
+                editor.focus();
+                render();
+                updateCursor();
+                statusLeft.textContent = '任务状态已切换';
+            }
+
+            function addNestedQuote() {
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineStart);
+                const currentLine = after.split('\n')[0] || '';
+                if (currentLine.startsWith('>')) {
+                    editor.value = before + '>' + after;
+                } else {
+                    editor.value = before + '> ' + after;
+                }
+                const newPos = lineStart + (currentLine.startsWith('>') ? 1 : 2);
+                editor.selectionStart = editor.selectionEnd = newPos;
+                editor.focus();
+                render();
+                updateCursor();
+            }
+
+            function addIndent() {
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineStart);
+                editor.value = before + '  ' + after;
+                editor.selectionStart = editor.selectionEnd = lineStart + 2;
+                editor.focus();
+                render();
+                updateCursor();
+            }
+
+            function applyTableAlign(align) {
+                const pos = editor.selectionStart;
+                const text = editor.value;
+                let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+                let lineEnd = text.indexOf('\n', pos);
+                if (lineEnd === -1) lineEnd = text.length;
+                let currentLine = text.substring(lineStart, lineEnd);
+                if (!currentLine.includes('|')) {
+                    statusLeft.textContent = '光标不在表格行中';
+                    return;
+                }
+
+                const offset = pos - lineStart;
+                const before = currentLine.substring(0, offset);
+                const pipeCount = (before.match(/\|/g) || []).length;
+                let colIndex = pipeCount - 1;
+                if (colIndex < 0) colIndex = 0;
+                const totalPipes = (currentLine.match(/\|/g) || []).length;
+                const totalCols = totalPipes - 1;
+                if (colIndex >= totalCols) colIndex = totalCols - 1;
+
+                let tableStart = lineStart,
+                    tableEnd = lineEnd;
+                let i = lineStart - 1;
+                while (i >= 0) {
+                    let prevStart = text.lastIndexOf('\n', i) + 1;
+                    let prevLine = text.substring(prevStart, i + 1);
+                    if (!prevLine.includes('|')) break;
+                    tableStart = prevStart;
+                    i = prevStart - 1;
+                }
+                let j = lineEnd + 1;
+                while (j < text.length) {
+                    let nextEnd = text.indexOf('\n', j);
+                    if (nextEnd === -1) nextEnd = text.length;
+                    let nextLine = text.substring(j, nextEnd);
+                    if (!nextLine.includes('|')) break;
+                    tableEnd = nextEnd;
+                    j = nextEnd + 1;
+                }
+
+                const tableText = text.substring(tableStart, tableEnd);
+                const lines = tableText.split('\n');
+                let sepIdx = -1;
+                for (let k = 0; k < lines.length; k++) {
+                    if (/^\s*\|?\s*:?-+:?\s*\|/.test(lines[k])) {
+                        sepIdx = k;
+                        break;
+                    }
+                }
+                if (sepIdx === -1) {
+                    statusLeft.textContent = '未找到表格分隔行';
+                    return;
+                }
+
+                let sepLine = lines[sepIdx];
+                let trimmed = sepLine.trim();
+                let parts = [];
+                if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+                    let inner = trimmed.substring(1, trimmed.length - 1);
+                    parts = inner.split('|').map(s => s.trim());
+                } else if (trimmed.startsWith('|')) {
+                    let inner = trimmed.substring(1);
+                    parts = inner.split('|').map(s => s.trim());
+                } else if (trimmed.endsWith('|')) {
+                    let inner = trimmed.substring(0, trimmed.length - 1);
+                    parts = inner.split('|').map(s => s.trim());
+                } else {
+                    parts = trimmed.split('|').map(s => s.trim());
+                }
+                if (parts.length < totalCols) {
+                    while (parts.length < totalCols) parts.push('---');
+                } else if (parts.length > totalCols) {
+                    parts = parts.slice(0, totalCols);
+                }
+
+                const alignMap = { left: ':---', center: ':---:', right: '---:' };
+                const newAlign = alignMap[align] || ':---';
+                if (colIndex < parts.length) {
+                    parts[colIndex] = newAlign;
+                } else {
+                    statusLeft.textContent = '列索引超出';
+                    return;
+                }
+
+                let newSepLine = '| ' + parts.join(' | ') + ' |';
+                lines[sepIdx] = newSepLine;
+
+                const newTable = lines.join('\n');
+                const beforeText = text.substring(0, tableStart);
+                const afterText = text.substring(tableEnd);
+                editor.value = beforeText + newTable + afterText;
+                const newPos = beforeText.length + newTable.length;
+                editor.selectionStart = editor.selectionEnd = Math.min(newPos, editor.value.length);
+                editor.focus();
+                render();
+                updateCursor();
+                statusLeft.textContent = `列 ${colIndex+1} 已对齐为 ${align}`;
+            }
+
+            function insertMermaid(code) {
+                insertAtCursor('```mermaid\n' + code + '\n```');
+            }
+
+            // ========== 插入自定义表格（改为弹窗方式） ==========
+            let tablePopupRows = 3;
+            let tablePopupCols = 3;
+
+            function openTablePopup(btnElement) {
+                // 关闭可能已打开的
+                closeTablePopup();
+
+                // 构建弹窗内容
+                tablePopup.innerHTML = `
+                    <div class="popup-row">
+                        <label>行数（含表头）</label>
+                        <div class="num-control">
+                            <button class="table-row-dec">−</button>
+                            <input type="number" id="tablePopupRows" value="${tablePopupRows}" min="2" max="20" />
+                            <button class="table-row-inc">+</button>
+                        </div>
+                    </div>
+                    <div class="popup-row">
+                        <label>列数</label>
+                        <div class="num-control">
+                            <button class="table-col-dec">−</button>
+                            <input type="number" id="tablePopupCols" value="${tablePopupCols}" min="1" max="20" />
+                            <button class="table-col-inc">+</button>
+                        </div>
+                    </div>
+                    <div class="popup-actions">
+                        <button class="table-cancel">取消</button>
+                        <button class="table-insert primary">插入</button>
+                    </div>
+                `;
+
+                // 定位
+                const rect = btnElement.getBoundingClientRect();
+                let left = rect.left;
+                let top = rect.bottom + 4;
+                const popupWidth = 280;
+                if (left + popupWidth > window.innerWidth - 10) {
+                    left = window.innerWidth - popupWidth - 10;
+                }
+                if (top + 150 > window.innerHeight - 10) {
+                    top = rect.top - 150 - 4;
+                }
+                tablePopup.style.left = Math.max(10, left) + 'px';
+                tablePopup.style.top = Math.max(10, top) + 'px';
+                tablePopup.classList.add('open');
+
+                // 绑定事件
+                const rowsInput = document.getElementById('tablePopupRows');
+                const colsInput = document.getElementById('tablePopupCols');
+
+                const updateRows = (val) => {
+                    let v = parseInt(val);
+                    if (isNaN(v) || v < 2) v = 2;
+                    if (v > 20) v = 20;
+                    rowsInput.value = v;
+                    tablePopupRows = v;
+                };
+                const updateCols = (val) => {
+                    let v = parseInt(val);
+                    if (isNaN(v) || v < 1) v = 1;
+                    if (v > 20) v = 20;
+                    colsInput.value = v;
+                    tablePopupCols = v;
+                };
+
+                tablePopup.querySelector('.table-row-dec').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    updateRows(parseInt(rowsInput.value) - 1);
+                });
+                tablePopup.querySelector('.table-row-inc').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    updateRows(parseInt(rowsInput.value) + 1);
+                });
+                tablePopup.querySelector('.table-col-dec').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    updateCols(parseInt(colsInput.value) - 1);
+                });
+                tablePopup.querySelector('.table-col-inc').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    updateCols(parseInt(colsInput.value) + 1);
+                });
+
+                rowsInput.addEventListener('change', function() {
+                    updateRows(this.value);
+                });
+                colsInput.addEventListener('change', function() {
+                    updateCols(this.value);
+                });
+
+                // 插入按钮
+                tablePopup.querySelector('.table-insert').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    insertCustomTable(tablePopupRows, tablePopupCols);
+                    closeTablePopup();
+                });
+
+                // 取消按钮
+                tablePopup.querySelector('.table-cancel').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    closeTablePopup();
+                });
+
+                // 点击外部关闭（在 document 上监听，但排除弹窗内）
+                // 我们将使用全局点击监听，但需要排除弹窗内部
+                // 在全局监听中会处理
+            }
+
+            function closeTablePopup() {
+                tablePopup.classList.remove('open');
+            }
+
+            function insertCustomTable(rows, cols) {
+                let header = '|';
+                for (let i = 1; i <= cols; i++) {
+                    header += ` 列${i} |`;
+                }
+                let separator = '|';
+                for (let i = 0; i < cols; i++) {
+                    separator += ' --- |';
+                }
+                let dataRows = '';
+                for (let r = 1; r <= rows - 1; r++) {
+                    let row = '|';
+                    for (let c = 1; c <= cols; c++) {
+                        row += ` 数据${r}${c} |`;
+                    }
+                    dataRows += row + '\n';
+                }
+                const table = '\n' + header + '\n' + separator + '\n' + dataRows;
+                insertAtCursor(table);
+                pushHistory();
+            }
+
+            // ========== 公式模板插入（含检查） ==========
+            function insertFormulaTemplate(template, cursorOffset = 0) {
+                if (!isInsideMath()) {
+                    alert('请在公式内插入模板（光标需在 $...$ 或 $$...$$ 范围内）');
+                    return;
+                }
+                insertAtCursor(template);
+                if (cursorOffset > 0) {
+                    const pos = editor.selectionStart;
+                    editor.selectionStart = editor.selectionEnd = pos - cursorOffset;
+                }
+                pushHistory();
+                switchTab('tab-formula');
+                closePopup();
+            }
+
+            // ========== 浮动弹出窗口管理 ==========
+            function openPopup(categoryId, btnElement) {
+                closePopup();
+
+                const categories = getFormulaCategories();
+                const cat = categories.find(c => c.id === categoryId);
+                if (!cat) return;
+
+                formulaPopup.innerHTML = '';
+                cat.items.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.textContent = item.symbol || item.label;
+                    btn.title = item.code;
+                    const tooltip = document.createElement('span');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = item.code;
+                    btn.appendChild(tooltip);
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        insertFormulaTemplate(item.code, item.offset);
+                    });
+                    formulaPopup.appendChild(btn);
+                });
+
+                const rect = btnElement.getBoundingClientRect();
+                let left = rect.left;
+                let top = rect.bottom + 4;
+                const popupWidth = 300;
+                if (left + popupWidth > window.innerWidth - 10) {
+                    left = window.innerWidth - popupWidth - 10;
+                }
+                if (top + 300 > window.innerHeight - 10) {
+                    top = rect.top - 300 - 4;
+                }
+                formulaPopup.style.left = Math.max(10, left) + 'px';
+                formulaPopup.style.top = Math.max(10, top) + 'px';
+                formulaPopup.classList.add('open');
+                activePopupCategory = categoryId;
+            }
+
+            function closePopup() {
+                formulaPopup.classList.remove('open');
+                activePopupCategory = null;
+            }
+
+            // ===== 点击外部关闭弹出窗口 =====
+            document.addEventListener('click', function(e) {
+                // 关闭公式弹窗
+                if (formulaPopup.classList.contains('open')) {
+                    const target = e.target.closest('.formula-cat-btn');
+                    if (target) return;
+                    if (e.target.closest('.formula-popup')) return;
+                    closePopup();
+                }
+                // 关闭表格弹窗
+                if (tablePopup.classList.contains('open')) {
+                    const target = e.target.closest('#tableBtn');
+                    if (target) return;
+                    if (e.target.closest('.table-popup')) return;
+                    closeTablePopup();
+                }
+            });
+
+            // ========== 公式分类数据 ==========
+            function getFormulaCategories() {
+                return [{
+                    id: 'frac',
+                    label: '分数与导数',
+                    items: [
+                        { label: '\\frac{}{}', code: '\\frac{}{}', offset: 1, symbol: '⅓' },
+                        { label: '\\dfrac{}{}', code: '\\dfrac{}{}', offset: 1, symbol: '⅔' },
+                        { label: '\\tfrac{}{}', code: '\\tfrac{}{}', offset: 1, symbol: '⅓' },
+                        { label: '\\binom{}{}', code: '\\binom{}{}', offset: 1, symbol: '()' },
+                        { label: '\\partial', code: '\\partial', offset: 0, symbol: '∂' },
+                        { label: '\\nabla', code: '\\nabla', offset: 0, symbol: '∇' },
+                        { label: "\\frac{d}{dx}", code: "\\frac{d}{dx}", offset: 1, symbol: 'd/dx' },
+                    ]
+                }, {
+                    id: 'super',
+                    label: '上下标',
+                    items: [
+                        { label: '^{}', code: '^{}', offset: 1, symbol: 'x²' },
+                        { label: '_{}', code: '_{}', offset: 1, symbol: 'x₂' },
+                        { label: '^{}_{}', code: '^{}_{}', offset: 2, symbol: 'x²₃' },
+                        { label: '_{}^{}', code: '_{}^{}', offset: 2, symbol: 'x₃²' },
+                        { label: '\\hat{}', code: '\\hat{}', offset: 1, symbol: 'â' },
+                        { label: '\\bar{}', code: '\\bar{}', offset: 1, symbol: 'ā' },
+                        { label: '\\tilde{}', code: '\\tilde{}', offset: 1, symbol: 'ã' },
+                    ]
+                }, {
+                    id: 'large',
+                    label: '大型运算符',
+                    items: [
+                        { label: '\\sum_{}^{}', code: '\\sum_{}^{}', offset: 3, symbol: '∑' },
+                        { label: '\\int_{}^{}', code: '\\int_{}^{}', offset: 3, symbol: '∫' },
+                        { label: '\\prod_{}^{}', code: '\\prod_{}^{}', offset: 3, symbol: '∏' },
+                        { label: '\\bigcup_{}^{}', code: '\\bigcup_{}^{}', offset: 3, symbol: '∪' },
+                        { label: '\\bigcap_{}^{}', code: '\\bigcap_{}^{}', offset: 3, symbol: '∩' },
+                        { label: '\\oint', code: '\\oint', offset: 0, symbol: '∮' },
+                        { label: '\\iint', code: '\\iint', offset: 0, symbol: '∬' },
+                        { label: '\\iiint', code: '\\iiint', offset: 0, symbol: '∭' },
+                    ]
+                }, {
+                    id: 'lim',
+                    label: '极限与对数',
+                    items: [
+                        { label: '\\lim_{}', code: '\\lim_{}', offset: 1, symbol: 'lim' },
+                        { label: '\\log', code: '\\log', offset: 0, symbol: 'log' },
+                        { label: '\\ln', code: '\\ln', offset: 0, symbol: 'ln' },
+                        { label: '\\lg', code: '\\lg', offset: 0, symbol: 'lg' },
+                        { label: '\\exp', code: '\\exp', offset: 0, symbol: 'exp' },
+                        { label: '\\max', code: '\\max', offset: 0, symbol: 'max' },
+                        { label: '\\min', code: '\\min', offset: 0, symbol: 'min' },
+                        { label: '\\sup', code: '\\sup', offset: 0, symbol: 'sup' },
+                        { label: '\\inf', code: '\\inf', offset: 0, symbol: 'inf' },
+                    ]
+                }, {
+                    id: 'trig',
+                    label: '三角与双曲',
+                    items: [
+                        { label: '\\sin', code: '\\sin', offset: 0, symbol: 'sin' },
+                        { label: '\\cos', code: '\\cos', offset: 0, symbol: 'cos' },
+                        { label: '\\tan', code: '\\tan', offset: 0, symbol: 'tan' },
+                        { label: '\\cot', code: '\\cot', offset: 0, symbol: 'cot' },
+                        { label: '\\sec', code: '\\sec', offset: 0, symbol: 'sec' },
+                        { label: '\\csc', code: '\\csc', offset: 0, symbol: 'csc' },
+                        { label: '\\arcsin', code: '\\arcsin', offset: 0, symbol: 'arcsin' },
+                        { label: '\\arccos', code: '\\arccos', offset: 0, symbol: 'arccos' },
+                        { label: '\\arctan', code: '\\arctan', offset: 0, symbol: 'arctan' },
+                        { label: '\\sinh', code: '\\sinh', offset: 0, symbol: 'sinh' },
+                        { label: '\\cosh', code: '\\cosh', offset: 0, symbol: 'cosh' },
+                        { label: '\\tanh', code: '\\tanh', offset: 0, symbol: 'tanh' },
+                    ]
+                }, {
+                    id: 'greek',
+                    label: '希腊字母',
+                    items: [
+                        { label: '\\alpha', code: '\\alpha', offset: 0, symbol: 'α' },
+                        { label: '\\beta', code: '\\beta', offset: 0, symbol: 'β' },
+                        { label: '\\gamma', code: '\\gamma', offset: 0, symbol: 'γ' },
+                        { label: '\\delta', code: '\\delta', offset: 0, symbol: 'δ' },
+                        { label: '\\epsilon', code: '\\epsilon', offset: 0, symbol: 'ε' },
+                        { label: '\\zeta', code: '\\zeta', offset: 0, symbol: 'ζ' },
+                        { label: '\\eta', code: '\\eta', offset: 0, symbol: 'η' },
+                        { label: '\\theta', code: '\\theta', offset: 0, symbol: 'θ' },
+                        { label: '\\iota', code: '\\iota', offset: 0, symbol: 'ι' },
+                        { label: '\\kappa', code: '\\kappa', offset: 0, symbol: 'κ' },
+                        { label: '\\lambda', code: '\\lambda', offset: 0, symbol: 'λ' },
+                        { label: '\\mu', code: '\\mu', offset: 0, symbol: 'μ' },
+                        { label: '\\nu', code: '\\nu', offset: 0, symbol: 'ν' },
+                        { label: '\\xi', code: '\\xi', offset: 0, symbol: 'ξ' },
+                        { label: '\\pi', code: '\\pi', offset: 0, symbol: 'π' },
+                        { label: '\\rho', code: '\\rho', offset: 0, symbol: 'ρ' },
+                        { label: '\\sigma', code: '\\sigma', offset: 0, symbol: 'σ' },
+                        { label: '\\tau', code: '\\tau', offset: 0, symbol: 'τ' },
+                        { label: '\\upsilon', code: '\\upsilon', offset: 0, symbol: 'υ' },
+                        { label: '\\phi', code: '\\phi', offset: 0, symbol: 'φ' },
+                        { label: '\\chi', code: '\\chi', offset: 0, symbol: 'χ' },
+                        { label: '\\psi', code: '\\psi', offset: 0, symbol: 'ψ' },
+                        { label: '\\omega', code: '\\omega', offset: 0, symbol: 'ω' },
+                        { label: '\\Gamma', code: '\\Gamma', offset: 0, symbol: 'Γ' },
+                        { label: '\\Delta', code: '\\Delta', offset: 0, symbol: 'Δ' },
+                        { label: '\\Theta', code: '\\Theta', offset: 0, symbol: 'Θ' },
+                        { label: '\\Lambda', code: '\\Lambda', offset: 0, symbol: 'Λ' },
+                        { label: '\\Xi', code: '\\Xi', offset: 0, symbol: 'Ξ' },
+                        { label: '\\Pi', code: '\\Pi', offset: 0, symbol: 'Π' },
+                        { label: '\\Sigma', code: '\\Sigma', offset: 0, symbol: 'Σ' },
+                        { label: '\\Upsilon', code: '\\Upsilon', offset: 0, symbol: 'Υ' },
+                        { label: '\\Phi', code: '\\Phi', offset: 0, symbol: 'Φ' },
+                        { label: '\\Psi', code: '\\Psi', offset: 0, symbol: 'Ψ' },
+                        { label: '\\Omega', code: '\\Omega', offset: 0, symbol: 'Ω' },
+                    ]
+                }, {
+                    id: 'accents',
+                    label: '重音符号',
+                    items: [
+                        { label: '\\hat{}', code: '\\hat{}', offset: 1, symbol: 'â' },
+                        { label: '\\bar{}', code: '\\bar{}', offset: 1, symbol: 'ā' },
+                        { label: '\\tilde{}', code: '\\tilde{}', offset: 1, symbol: 'ã' },
+                        { label: '\\vec{}', code: '\\vec{}', offset: 1, symbol: '→' },
+                        { label: '\\dot{}', code: '\\dot{}', offset: 1, symbol: '˙' },
+                        { label: '\\ddot{}', code: '\\ddot{}', offset: 1, symbol: '¨' },
+                        { label: '\\widehat{}', code: '\\widehat{}', offset: 1, symbol: '^' },
+                        { label: '\\widetilde{}', code: '\\widetilde{}', offset: 1, symbol: '~' },
+                        { label: '\\overline{}', code: '\\overline{}', offset: 1, symbol: '‾' },
+                        { label: '\\underline{}', code: '\\underline{}', offset: 1, symbol: '_' },
+                        { label: '\\overleftarrow{}', code: '\\overleftarrow{}', offset: 1, symbol: '←' },
+                        { label: '\\overrightarrow{}', code: '\\overrightarrow{}', offset: 1, symbol: '→' },
+                    ]
+                }, {
+                    id: 'others',
+                    label: '其它符号',
+                    items: [
+                        { label: '\\to', code: '\\to', offset: 0, symbol: '→' },
+                        { label: '\\rightarrow', code: '\\rightarrow', offset: 0, symbol: '→' },
+                        { label: '\\leftarrow', code: '\\leftarrow', offset: 0, symbol: '←' },
+                        { label: '\\Leftrightarrow', code: '\\Leftrightarrow', offset: 0, symbol: '⇔' },
+                        { label: '\\infty', code: '\\infty', offset: 0, symbol: '∞' },
+                        { label: '\\pm', code: '\\pm', offset: 0, symbol: '±' },
+                        { label: '\\mp', code: '\\mp', offset: 0, symbol: '∓' },
+                        { label: '\\times', code: '\\times', offset: 0, symbol: '×' },
+                        { label: '\\div', code: '\\div', offset: 0, symbol: '÷' },
+                        { label: '\\cdot', code: '\\cdot', offset: 0, symbol: '·' },
+                        { label: '\\neq', code: '\\neq', offset: 0, symbol: '≠' },
+                        { label: '\\approx', code: '\\approx', offset: 0, symbol: '≈' },
+                        { label: '\\equiv', code: '\\equiv', offset: 0, symbol: '≡' },
+                        { label: '\\sim', code: '\\sim', offset: 0, symbol: '∼' },
+                        { label: '\\propto', code: '\\propto', offset: 0, symbol: '∝' },
+                        { label: '\\leq', code: '\\leq', offset: 0, symbol: '≤' },
+                        { label: '\\geq', code: '\\geq', offset: 0, symbol: '≥' },
+                        { label: '\\forall', code: '\\forall', offset: 0, symbol: '∀' },
+                        { label: '\\exists', code: '\\exists', offset: 0, symbol: '∃' },
+                        { label: '\\emptyset', code: '\\emptyset', offset: 0, symbol: '∅' },
+                        { label: '\\ldots', code: '\\ldots', offset: 0, symbol: '…' },
+                        { label: '\\cdots', code: '\\cdots', offset: 0, symbol: '⋯' },
+                        { label: '\\vdots', code: '\\vdots', offset: 0, symbol: '⋮' },
+                        { label: '\\ddots', code: '\\ddots', offset: 0, symbol: '⋱' },
+                        { label: '\\sqrt{}', code: '\\sqrt{}', offset: 1, symbol: '√' },
+                        { label: '\\sqrt[n]{}', code: '\\sqrt[n]{}', offset: 3, symbol: 'n√' },
+                        { label: '\\left(  \\right)', code: '\\left(  \\right)', offset: 3, symbol: '( )' },
+                        { label: '\\left[  \\right]', code: '\\left[  \\right]', offset: 3, symbol: '[ ]' },
+                        { label: '\\left\\{  \\right\\}', code: '\\left\\{  \\right\\}', offset: 3, symbol: '{ }' },
+                        { label: '\\begin{matrix} a & b \\\\ c & d \\end{matrix}',
+                            code: '\\begin{matrix} a & b \\\\ c & d \\end{matrix}', offset: 0, symbol: '⊞' },
+                    ]
+                }];
+            }
+
+            // ========== 分类按钮点击处理 ==========
+            document.querySelectorAll('.formula-cat-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const catId = this.dataset.cat;
+                    if (activePopupCategory === catId && formulaPopup.classList.contains('open')) {
+                        closePopup();
+                        return;
+                    }
+                    openPopup(catId, this);
+                });
+            });
+
+            // ========== 表格按钮点击 ==========
+            document.getElementById('tableBtn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                // 如果弹窗已打开则关闭，否则打开
+                if (tablePopup.classList.contains('open')) {
+                    closeTablePopup();
+                } else {
+                    openTablePopup(this);
+                }
+            });
+
+            // ========== 粘贴图片功能 ==========
+            editor.addEventListener('paste', function(e) {
+                const clipboardData = e.clipboardData || e.originalEvent.clipboardData;
+                if (!clipboardData) return;
+
+                // 检查是否有图片
+                const items = clipboardData.items;
+                let imageItem = null;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        imageItem = items[i];
+                        break;
+                    }
+                }
+                if (!imageItem) return;
+
+                // 阻止默认粘贴（文本内容）
+                e.preventDefault();
+
+                const file = imageItem.getAsFile();
+                if (!file) return;
+
+                // 读取为 DataURL
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const dataUrl = ev.target.result;
+                    // 弹出对话框让用户输入图片名称
+                    const name = prompt('请输入图片名称:', '图片');
+                    if (name === null) {
+                        // 用户取消，不插入
+                        return;
+                    }
+                    const finalName = name.trim() || '图片';
+                    // 插入 Markdown 图片语法
+                    const markdown = `![${finalName}](${dataUrl})`;
+                    // 获取当前光标位置，插入
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    const before = editor.value.substring(0, start);
+                    const after = editor.value.substring(end);
+                    editor.value = before + markdown + after;
+                    const newPos = start + markdown.length;
+                    editor.selectionStart = editor.selectionEnd = newPos;
+                    editor.focus();
+                    render();
+                    updateCursor();
+                    pushHistory();
+                    statusLeft.textContent = '图片已粘贴';
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // ========== 文件操作 ==========
+            function openFile() { fileInput.click(); }
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    editor.value = ev.target.result;
+                    render();
+                    updateCursor();
+                    statusLeft.textContent = '已加载: ' + file.name;
+                    fileInput.value = '';
+                    historyStack = [];
+                    historyIndex = -1;
+                    pushHistory();
+                };
+                reader.readAsText(file);
+            });
+
+            function saveFile() {
+                const blob = new Blob([editor.value], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'document.md';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                statusLeft.textContent = '已保存';
+            }
+
+            function newDocument() {
+                if (editor.value && !confirm('当前文档未保存，确定要新建空白文档吗？')) return;
+                editor.value = '';
+                render();
+                updateCursor();
+                statusLeft.textContent = '已新建';
+                historyStack = [];
+                historyIndex = -1;
+                pushHistory();
+            }
+
+            function loadExample() {
+                if (editor.value && !confirm('加载示例将覆盖当前内容，确定继续吗？')) return;
+                statusLeft.textContent = '正在载入示例…';
+                loadSample().then(function (text) {
+                    editor.value = text;
+                    render();
+                    updateCursor();
+                    statusLeft.textContent = sampleCache ? '已加载示例' : '已加载示例（未读取到示例文件，用的是内置简易示例）';
+                    historyStack = [];
+                    historyIndex = -1;
+                    pushHistory();
+                });
+            }
+
+            // ========== 分屏切换与拖拽 ==========
+            let currentStartResize = null;
+
+            function setSplitMode(mode) {
+                splitMode = mode;
+                const isVertical = mode === 'vertical';
+                mainContainer.classList.toggle('split-vertical', isVertical);
+
+                document.getElementById('splitHorizontalBtn').classList.toggle('active', !isVertical);
+                document.getElementById('splitVerticalBtn').classList.toggle('active', isVertical);
+
+                editorPanel.style.flex = '1 1 50%';
+                previewPanel.style.flex = '1 1 50%';
+
+                if (currentStartResize) {
+                    resizer.removeEventListener('mousedown', currentStartResize);
+                    resizer.removeEventListener('touchstart', currentStartResize);
+                    currentStartResize = null;
+                }
+
+                const startResize = function(e) {
+                    e.preventDefault();
+                    const isVerticalNow = splitMode === 'vertical';
+                    const startX = e.clientX || (e.touches && e.touches[0].clientX);
+                    const startY = e.clientY || (e.touches && e.touches[0].clientY);
+                    if (startX === undefined || startY === undefined) return;
+
+                    const rect = mainContainer.getBoundingClientRect();
+                    const editorRect = editorPanel.getBoundingClientRect();
+                    const startFlex = isVerticalNow ? (editorRect.height / rect.height) : (editorRect.width / rect.width);
+                    const clampedStartFlex = Math.min(Math.max(startFlex, 0.1), 0.9);
+
+                    resizer.classList.add('active');
+                    document.body.style.cursor = isVerticalNow ? 'row-resize' : 'col-resize';
+                    document.body.style.userSelect = 'none';
+
+                    const onMove = function(ev) {
+                        ev.preventDefault();
+                        const currentX = ev.clientX || (ev.touches && ev.touches[0].clientX);
+                        const currentY = ev.clientY || (ev.touches && ev.touches[0].clientY);
+                        if (currentX === undefined || currentY === undefined) return;
+                        const currentPos = isVerticalNow ? currentY : currentX;
+                        const startPos = isVerticalNow ? startY : startX;
+                        const delta = currentPos - startPos;
+                        const totalSize = isVerticalNow ? rect.height : rect.width;
+                        const ratio = Math.min(Math.max(clampedStartFlex + delta / totalSize, 0.1), 0.9);
+                        editorPanel.style.flex = `1 1 ${ratio * 100}%`;
+                        previewPanel.style.flex = `1 1 ${(1 - ratio) * 100}%`;
+                    };
+
+                    const onUp = function() {
+                        resizer.classList.remove('active');
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.removeEventListener('touchmove', onMove);
+                        document.removeEventListener('touchend', onUp);
+                    };
+
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                    document.addEventListener('touchmove', onMove, { passive: false });
+                    document.addEventListener('touchend', onUp, { passive: false });
+                };
+
+                resizer.addEventListener('mousedown', startResize);
+                resizer.addEventListener('touchstart', startResize, { passive: false });
+                currentStartResize = startResize;
+            }
+
+            // ========== 撤销/重做 ==========
+            const MAX_HISTORY = 100;
+            let historyStack = [];
+            let historyIndex = -1;
+            let isUndoRedo = false;
+
+            function pushHistory() {
+                if (isUndoRedo) return;
+                const current = editor.value;
+                if (historyIndex >= 0 && historyStack[historyIndex] === current) return;
+                historyStack = historyStack.slice(0, historyIndex + 1);
+                historyStack.push(current);
+                if (historyStack.length > MAX_HISTORY) {
+                    historyStack.shift();
+                }
+                historyIndex = historyStack.length - 1;
+            }
+
+            function undo() {
+                if (historyIndex <= 0) return;
+                historyIndex--;
+                isUndoRedo = true;
+                editor.value = historyStack[historyIndex];
+                editor.dispatchEvent(new Event('input'));
+                isUndoRedo = false;
+                statusLeft.textContent = '撤销';
+            }
+
+            function redo() {
+                if (historyIndex >= historyStack.length - 1) return;
+                historyIndex++;
+                isUndoRedo = true;
+                editor.value = historyStack[historyIndex];
+                editor.dispatchEvent(new Event('input'));
+                isUndoRedo = false;
+                statusLeft.textContent = '重做';
+            }
+
+            // ========== 输入时禁用同步滚动 ==========
+            function disableSyncScroll() {
+                skipSyncScroll = true;
+                if (syncScrollTimer) {
+                    clearTimeout(syncScrollTimer);
+                    syncScrollTimer = null;
+                }
+            }
+
+            function enableSyncScrollAfterDelay() {
+                if (syncScrollTimer) {
+                    clearTimeout(syncScrollTimer);
+                    syncScrollTimer = null;
+                }
+                syncScrollTimer = setTimeout(function() {
+                    skipSyncScroll = false;
+                    syncScrollTimer = null;
+                    if (syncScrollEnabled) {
+                        smoothSyncScroll();
+                    }
+                    statusLeft.textContent = '同步滚动已恢复';
+                }, 500);
+            }
+
+            function smoothSyncScroll() {
+                const editorRatio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+                const previewEl = document.querySelector('.preview-content');
+                if (previewEl && !isNaN(editorRatio) && isFinite(editorRatio)) {
+                    const targetTop = editorRatio * (previewEl.scrollHeight - previewEl.clientHeight);
+                    previewEl.scrollTo({
+                        top: targetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+
+            editor.addEventListener('input', function() {
+                if (!isUndoRedo) {
+                    pushHistory();
+                }
+                disableSyncScroll();
+                render();
+                updateCursor();
+                enableSyncScrollAfterDelay();
+            });
+
+            editor.addEventListener('compositionstart', function() {
+                disableSyncScroll();
+            });
+            editor.addEventListener('compositionend', function() {
+                if (syncScrollTimer) {
+                    clearTimeout(syncScrollTimer);
+                    syncScrollTimer = null;
+                }
+                enableSyncScrollAfterDelay();
+            });
+
+            // ========== Tab 缩进 ==========
+            function handleTab(e) {
+                const shiftKey = e.shiftKey;
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const text = editor.value;
+                const isMultiLine = text.substring(start, end).includes('\n');
+
+                e.preventDefault();
+
+                if (isMultiLine) {
+                    let lineStart = text.lastIndexOf('\n', start - 1) + 1;
+                    let lineEnd = text.indexOf('\n', end);
+                    if (lineEnd === -1) lineEnd = text.length;
+                    const selectedLines = text.substring(lineStart, lineEnd).split('\n');
+
+                    let newLines = [];
+                    if (shiftKey) {
+                        for (let line of selectedLines) {
+                            if (line.startsWith('  ')) {
+                                newLines.push(line.substring(2));
+                            } else {
+                                newLines.push(line);
+                            }
+                        }
+                    } else {
+                        for (let line of selectedLines) {
+                            newLines.push('  ' + line);
+                        }
+                    }
+                    const newText = newLines.join('\n');
+                    const before = text.substring(0, lineStart);
+                    const after = text.substring(lineEnd);
+                    editor.value = before + newText + after;
+                    const newStart = lineStart;
+                    const newEnd = lineStart + newText.length;
+                    editor.selectionStart = newStart;
+                    editor.selectionEnd = newEnd;
+                    editor.focus();
+                    render();
+                    updateCursor();
+                    pushHistory();
+                    statusLeft.textContent = shiftKey ? '取消缩进' : '缩进';
+                } else {
+                    if (shiftKey) {
+                        let lineStart = text.lastIndexOf('\n', start - 1) + 1;
+                        let lineEnd = text.indexOf('\n', start);
+                        if (lineEnd === -1) lineEnd = text.length;
+                        const line = text.substring(lineStart, lineEnd);
+                        if (line.startsWith('  ')) {
+                            const newLine = line.substring(2);
+                            const before = text.substring(0, lineStart);
+                            const after = text.substring(lineEnd);
+                            editor.value = before + newLine + after;
+                            const newPos = lineStart + newLine.length;
+                            editor.selectionStart = editor.selectionEnd = Math.min(newPos, editor.value.length);
+                            editor.focus();
+                            render();
+                            updateCursor();
+                            pushHistory();
+                            statusLeft.textContent = '取消缩进';
+                        }
+                    } else {
+                        const before = text.substring(0, start);
+                        const after = text.substring(start);
+                        editor.value = before + '  ' + after;
+                        const newPos = start + 2;
+                        editor.selectionStart = editor.selectionEnd = newPos;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        pushHistory();
+                        statusLeft.textContent = '缩进';
+                    }
+                }
+            }
+
+            // ========== Ribbon 切换逻辑 ==========
+            const tabButtons = document.querySelectorAll('.ribbon-tabs button');
+            const panels = document.querySelectorAll('.ribbon-panel');
+
+            function switchTab(tabId) {
+                tabButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tab === tabId);
+                });
+                panels.forEach(panel => {
+                    panel.classList.toggle('active', panel.id === tabId);
+                });
+            }
+
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                    closePopup();
+                    closeTablePopup();
+                });
+            });
+
+            // ========== 公式检测与自动切换 ==========
+            function checkAndSwitchToFormulaTab() {
+                if (isInsideMath()) {
+                    switchTab('tab-formula');
+                }
+            }
+
+            let formulaSwitchTimer = null;
+            const originalCheck = checkAndSwitchToFormulaTab;
+            checkAndSwitchToFormulaTab = function() {
+                if (formulaSwitchTimer) {
+                    clearTimeout(formulaSwitchTimer);
+                }
+                formulaSwitchTimer = setTimeout(() => {
+                    originalCheck();
+                    formulaSwitchTimer = null;
+                }, 100);
+            };
+
+            editor.addEventListener('click', checkAndSwitchToFormulaTab);
+            editor.addEventListener('keyup', checkAndSwitchToFormulaTab);
+            editor.addEventListener('selectionchange', checkAndSwitchToFormulaTab);
+
+            // ========== 事件绑定 ==========
+            function bind(id, fn) {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('click', fn);
+                else console.warn('Element not found:', id);
+            }
+
+            // 标题
+            document.getElementById('headingSelect').addEventListener('change', function() {
+                const val = this.value;
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                let lineEnd = editor.value.indexOf('\n', pos);
+                if (lineEnd === -1) lineEnd = editor.value.length;
+                const line = editor.value.substring(lineStart, lineEnd);
+                if (val === 'p') {
+                    const newLine = line.replace(/^#{1,6}\s*/, '');
+                    if (newLine !== line) {
+                        editor.value = editor.value.substring(0, lineStart) + newLine + editor.value.substring(lineEnd);
+                        editor.selectionStart = editor.selectionEnd = lineStart + newLine.length;
+                        editor.focus();
+                        render();
+                        updateCursor();
+                        pushHistory();
+                    }
+                } else {
+                    const level = parseInt(val.replace('h', ''));
+                    const prefix = '#'.repeat(level) + ' ';
+                    const clean = line.replace(/^#{1,6}\s*/, '');
+                    const newLine = prefix + clean;
+                    editor.value = editor.value.substring(0, lineStart) + newLine + editor.value.substring(lineEnd);
+                    editor.selectionStart = editor.selectionEnd = lineStart + newLine.length;
+                    editor.focus();
+                    render();
+                    updateCursor();
+                    pushHistory();
+                }
+                this.value = 'p';
+            });
+
+            // 格式
+            bind('boldBtn', () => { toggleStyle('**');
+                pushHistory(); });
+            bind('italicBtn', () => { toggleStyle('*');
+                pushHistory(); });
+            bind('strikeBtn', () => { toggleStyle('~~');
+                pushHistory(); });
+            bind('markBtn', () => { toggleStyle('==');
+                pushHistory(); });
+            bind('supBtn', () => { toggleStyle('^');
+                pushHistory(); });
+            bind('subBtn', () => { toggleStyle('~');
+                pushHistory(); });
+
+            // 列表等
+            bind('ulBtn', function() {
+                ensureAutoContinueOn();
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineStart);
+                editor.value = before + '- ' + after;
+                editor.selectionStart = editor.selectionEnd = lineStart + 2;
+                editor.focus();
+                render();
+                updateCursor();
+                pushHistory();
+            });
+            bind('olBtn', function() {
+                ensureAutoContinueOn();
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineStart);
+                editor.value = before + '1. ' + after;
+                editor.selectionStart = editor.selectionEnd = lineStart + 3;
+                editor.focus();
+                render();
+                updateCursor();
+                pushHistory();
+            });
+            bind('taskBtn', function() {
+                ensureAutoContinueOn();
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineStart);
+                editor.value = before + '- [ ] ' + after;
+                editor.selectionStart = editor.selectionEnd = lineStart + 6;
+                editor.focus();
+                render();
+                updateCursor();
+                pushHistory();
+            });
+            bind('taskToggleBtn', function() { toggleTask();
+                pushHistory(); });
+            bind('quoteBtn', function() {
+                const pos = editor.selectionStart;
+                let lineStart = editor.value.lastIndexOf('\n', pos - 1) + 1;
+                const before = editor.value.substring(0, lineStart);
+                const after = editor.value.substring(lineStart);
+                editor.value = before + '> ' + after;
+                editor.selectionStart = editor.selectionEnd = lineStart + 2;
+                editor.focus();
+                render();
+                updateCursor();
+                pushHistory();
+            });
+            bind('nestedQuoteBtn', function() { addNestedQuote();
+                pushHistory(); });
+            bind('indentBtn', function() { addIndent();
+                pushHistory(); });
+
+            // 表格对齐
+            bind('applyTableAlignBtn', function() {
+                const align = document.getElementById('tableAlignSelect').value;
+                applyTableAlign(align);
+                pushHistory();
+            });
+
+            // 代码
+            bind('codeBtn', function() { toggleStyle('`');
+                pushHistory(); });
+            bind('codeBlockBtn', insertCodeBlock);
+
+            // 链接和图片
+            bind('linkBtn', insertLink);
+            bind('imageBtn', insertImage);
+
+            // ===== 公式插入 =====
+            bind('inlineMathBtn', function() {
+                if (hasSelection()) {
+                    wrapSelection('$', '$');
+                } else {
+                    insertAtCursor('$$');
+                    const pos = editor.selectionStart;
+                    editor.selectionStart = editor.selectionEnd = pos - 1;
+                    editor.focus();
+                }
+                pushHistory();
+                switchTab('tab-formula');
+            });
+
+            bind('blockMathBtn', function() {
+                if (hasSelection()) {
+                    wrapSelection('$$\n', '\n$$');
+                } else {
+                    insertAtCursor('$$\n\n$$');
+                    const pos = editor.selectionStart;
+                    editor.selectionStart = editor.selectionEnd = pos - 3;
+                    editor.focus();
+                }
+                pushHistory();
+                switchTab('tab-formula');
+            });
+
+            // 图表
+            bind('flowchartBtn', () => { insertMermaid(
+                    'graph TD\n    A[开始] --> B{判断}\n    B -->|是| C[执行]\n    B -->|否| D[结束]');
+                pushHistory(); });
+            bind('sequenceBtn', () => { insertMermaid(
+                    'sequenceDiagram\n    张三->>李四: 你好，李四，最近怎么样？\n    李四-->>张三: 很好，谢谢！你那边呢？\n    张三->>李四: 我也挺好的，周末有空吗？\n    李四-->>张三: 有空，一起吃饭吧！');
+                pushHistory(); });
+            bind('ganttBtn', () => { insertMermaid(
+                    'gantt\n    title 项目计划\n    section 设计\n    设计阶段 :a1, 2023-01-01, 30d\n    section 开发\n    开发阶段 :after a1, 20d'
+                    );
+                pushHistory(); });
+
+            // 文件操作
+            bind('openFileBtn', openFile);
+            bind('saveFileBtn', saveFile);
+            bind('newBtn', newDocument);
+            bind('loadExampleBtn', loadExample);
+
+            // 自动接续
+            function toggleAutoContinue() {
+                autoContinueEnabled = !autoContinueEnabled;
+                const btn = document.getElementById('autoContinueBtn');
+                btn.classList.toggle('active');
+                btn.innerHTML = autoContinueEnabled ?
+                    '<span class="icon">↻</span><span class="label">自动接续</span>' :
+                    '<span class="icon">↻</span><span class="label">已停止</span>';
+                if (!autoContinueEnabled) {
+                    autoContinueTip.style.display = 'none';
+                    statusLeft.textContent = '自动接续已关闭';
+                } else {
+                    statusLeft.textContent = '自动接续已开启';
+                }
+            }
+            bind('autoContinueBtn', toggleAutoContinue);
+            tipCloseBtn.addEventListener('click', function() {
+                autoContinueTip.style.display = 'none';
+                statusLeft.textContent = '提示已隐藏';
+            });
+
+            function ensureAutoContinueOn() {
+                if (!autoContinueEnabled) {
+                    autoContinueEnabled = true;
+                    const btn = document.getElementById('autoContinueBtn');
+                    btn.classList.add('active');
+                    btn.innerHTML = '<span class="icon">↻</span><span class="label">自动接续</span>';
+                    autoContinueTip.style.display = 'flex';
+                    statusLeft.textContent = '自动接续已自动开启';
+                } else {
+                    autoContinueTip.style.display = 'flex';
+                }
+            }
+
+            // 同步滚动
+            bind('syncScrollBtn', function() {
+                syncScrollEnabled = !syncScrollEnabled;
+                this.classList.toggle('active');
+                this.innerHTML = syncScrollEnabled ?
+                    '<span class="icon">📌</span><span class="label">同步滚动</span>' :
+                    '<span class="icon">📌</span><span class="label">不同步</span>';
+                statusLeft.textContent = syncScrollEnabled ? '同步滚动开启' : '同步滚动关闭';
+                if (!syncScrollEnabled) {
+                    if (syncScrollTimer) {
+                        clearTimeout(syncScrollTimer);
+                        syncScrollTimer = null;
+                    }
+                    skipSyncScroll = false;
+                }
+            });
+
+            // ===== 深色/浅色模式切换 =====
+            function setTheme(dark) {
+                isDarkMode = dark;
+                document.body.classList.toggle('dark-mode', dark);
+                const lightBtn = document.getElementById('lightModeBtn');
+                const darkBtn = document.getElementById('darkModeBtn');
+                lightBtn.classList.toggle('active', !dark);
+                darkBtn.classList.toggle('active', dark);
+                statusLeft.textContent = dark ? '深色模式' : '浅色模式';
+                if (window.mermaid) {
+                    render();
+                }
+            }
+
+            bind('lightModeBtn', function() { setTheme(false); });
+            bind('darkModeBtn', function() { setTheme(true); });
+
+            // ===== 分屏切换 =====
+            bind('splitHorizontalBtn', function() { setSplitMode('horizontal'); });
+            bind('splitVerticalBtn', function() { setSplitMode('vertical'); });
+
+            // ===== 键盘事件 =====
+            editor.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    handleTab(e);
+                    return;
+                }
+                if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    undo();
+                    return;
+                }
+                if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+                    e.preventDefault();
+                    redo();
+                    return;
+                }
+                if (e.key === 'Enter') { handleEnter(e); }
+                if (e.ctrlKey && e.key === 'b') { e.preventDefault();
+                    document.getElementById('boldBtn').click(); }
+                if (e.ctrlKey && e.key === 'i') { e.preventDefault();
+                    document.getElementById('italicBtn').click(); }
+                if (e.ctrlKey && e.key === 'o') { e.preventDefault();
+                    openFile(); }
+                if (e.ctrlKey && e.key === 's') { e.preventDefault();
+                    saveFile(); }
+                if (e.ctrlKey && e.key === 'k') {
+                    e.preventDefault();
+                    insertLink();
+                }
+                if (e.ctrlKey && e.key === 'n') {
+                    e.preventDefault();
+                    newDocument();
+                }
+            });
+
+            // ===== 滚动事件 =====
+            editor.addEventListener('scroll', function() {
+                if (skipSyncScroll || isRendering) return;
+                if (syncScrollEnabled) {
+                    const ratio = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+                    const previewEl = document.querySelector('.preview-content');
+                    if (previewEl) {
+                        previewEl.scrollTop = ratio * (previewEl.scrollHeight - previewEl.clientHeight);
+                    }
+                }
+            });
+
+            document.querySelector('.preview-content').addEventListener('scroll', function() {
+                if (isRendering) return;
+                if (syncScrollEnabled) {
+                    const ratio = this.scrollTop / (this.scrollHeight - this.clientHeight);
+                    editor.scrollTop = ratio * (editor.scrollHeight - editor.clientHeight);
+                }
+            });
+
+            // ========== 初始化 ==========
+            if (window.mermaid) {
+                mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+            }
+            historyStack = [];
+            historyIndex = -1;
+            pushHistory();
+
+            render();
+            updateCursor();
+            statusLeft.textContent = '就绪';
+            autoContinueTip.style.display = 'none';
+
+            // 默认分屏模式
+            if (window.innerWidth <= 820) {
+                splitMode = 'vertical';
+            } else {
+                splitMode = 'horizontal';
+            }
+            setSplitMode(splitMode);
+
+            // 确保文件选项卡激活（因为HTML中已设置 active）
+            // 但为了保险，强制激活一次
+            switchTab('tab-file');
+
+            // 示例文档在 ./example/example_editor.md：到位后填入编辑器并重渲染，
+            // 避免「先显示兜底内容再被替换」的闪烁
+            loadSample().then(function (text) {
+                editor.value = text;
+                render();
+                updateCursor();
+                historyStack = [];
+                historyIndex = -1;
+                pushHistory();
+                statusLeft.textContent = sampleCache
+                    ? '就绪（已加载示例）'
+                    : '就绪（未读取到 example_editor.md，用的是内置简易示例）';
+            });
+
+            console.log('MPS·文字 编辑器已启动，支持粘贴图片和表格弹窗。');
+        })();
+    </script>
+
+</body>
+</html>

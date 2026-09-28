@@ -1,0 +1,13 @@
+{
+  "id": "mps-manim",
+  "name": "数学动画",
+  "description": "用 manim 风格的 DSL 在幻灯片里渲染可播放的数学动画：Canvas 绘制几何图形，KaTeX 排版公式，带可拖动的时间轴。",
+  "version": "1.0.0",
+  "author": "MPS",
+  "icon": "🎬",
+  "entry": "index.js",
+  "runtime": ["mps-manim.js"],
+  "files": ["plugin.json", "index.js", "mps-manim.js"],
+  "defaultEnabled": false,
+  "tabs": ["数学动画"]
+}
