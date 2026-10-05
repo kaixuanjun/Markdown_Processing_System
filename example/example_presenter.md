@@ -66,6 +66,16 @@ netease 26092806
 title 网易云单曲（把 ID 换成你的）
 ```
 
+## 直接粘贴其他平台的嵌入代码
+
+从其他平台复制的整段 `<iframe …></iframe>` 代码可以直接粘进 `iframe` 代码块：
+`src`、宽高（`width` / `height` / `style`）、`allow` 等属性会自动识别，
+块内还可以写 `ratio` / `height` / `title` 行来覆盖识别结果。
+
+```iframe
+<iframe src="//player.bilibili.com/player.html?bvid=BV1r7et6PEVQ" scrolling="no" frameborder="no" style="width: 800px;height: 450px;" allowfullscreen="true"></iframe>
+```
+
 # 数学动画（插件）
 
 ## 需要先在「插件管理」中开启

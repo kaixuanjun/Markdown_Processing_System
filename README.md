@@ -82,7 +82,7 @@ python -m http.server 8000
 
 | 插件 | id | 说明 | 参考的开源项目 |
 | --- | --- | --------- | --- |
-| iframe 播放器 | `iframe` | 嵌入哔哩哔哩 / 网易云音乐（单曲 / 歌单）/ YouTube / Vimeo 或任意 iframe 地址 | 无（纯平台 embed 拼接） |
+| iframe 播放器 | `iframe` | 嵌入哔哩哔哩 / 网易云音乐（单曲 / 歌单）/ YouTube / Vimeo 或任意 iframe 地址，支持直接粘贴其他平台复制的 `<iframe>` 嵌入代码（自动识别 src / 宽高 / allow） | 无（纯平台 embed 拼接） |
 | 数学动画 | `mps-manim` | manim 风格的 DSL（`axes` / `plot` / `play` / `MoveAlongPath`…）渲染可播放的 Canvas 动画，KaTeX 排版公式，带可拖动时间轴 | 设计理念与 DSL 参考 **[Manim Community](https://github.com/ManimCommunity/manim)（MIT）**；是「浏览器端极简重实现」，未使用 Manim 代码 |
 | Python 笔记本 | `marimo` | `marimo` 代码块 → marimo 风格反应式笔记本：`# %%` 分隔单元格、依赖分析、自动重算、现场可加单元格 | 交互范式参考 **[marimo](https://github.com/marimo-team/marimo)（Apache-2.0）**；实现为原创，未使用其代码 |
 | 摄像头画面 | `camera` | `camera` 代码块 → 可拖动 / 缩放的摄像头窗口，8 种遮罩形状、镜像、多摄像头切换 | 无（基于 WebRTC `getUserMedia` 自研） |
