@@ -667,7 +667,7 @@
         auto: ['```iframe', 'url https://example.com/', 'height auto',
             'title 自动高度网页（同源按内容撑开，跨域自动铺满）', '```', ''].join('\n'),
         fit: ['```iframe', 'url https://example.com/', 'height fit',
-            'title 铺满一页（随舞台缩放自动重算）', '```', ''].join('\n'),
+            'title 按整页高度铺满（随舞台缩放自动重算）', '```', ''].join('\n'),
         paste: ['```iframe',
             '# 在下面粘贴从其他平台复制的整段 <iframe …></iframe> 代码（本行注释可删除）',
             '# 例：<iframe src="https://www.x360.cn/tour/ccb91df465b1d996" frameborder="no" border="0" style="width: 1000px;height: 600px;" allowfullscreen="true"></iframe>',
@@ -751,7 +751,7 @@
             });
             tab.addButton({
                 id: 'ifpFitBtn', icon: '🖥', label: '铺满一页',
-                title: '插入 height fit：铺满幻灯片剩余可用高度，随舞台缩放自动重算',
+                title: '插入 height fit：按整页高度铺满（不扣上方标题 / 文字），随舞台缩放自动重算',
                 onClick: function () { insert(ctx, TEMPLATES.fit); }
             });
             tab.addDivider();
