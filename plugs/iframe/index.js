@@ -15,8 +15,8 @@
  *   height 320                  直接指定高度（px，优先于 ratio）
  *   height auto                 自动高度：按嵌入页面的真实内容高度撑开
  *                               （同源可测；跨域读不到内容高度时自动回退为铺满一页）
- *   height fit                  自动高度：铺满幻灯片剩余可用高度（与 height 100% 等价）
- *   height 60%                  自动高度：占可用高度的 60%（10%–100%）
+ *   height fit                  自动高度：按整页高度铺满（与 height 100% 等价，不扣上方标题 / 文字）
+ *   height 60%                  自动高度：占整页高度的 60%（10%–100%）
  *   title 说明文字               播放器下方的说明，同时提供「新窗口打开」入口
  *
  * 兼容：也可以把其他平台复制的整段嵌入代码直接粘进来（含 <iframe …></iframe>），
@@ -25,7 +25,8 @@
  *
  * 尺寸优先级：height auto / fit / 百分比 > 像素 height > 平台预设高度 > ratio 画幅。
  * auto / fit 先用画幅占位，块入 DOM 后由 blockRendered 测量并改写为像素高度；
- * 舞台尺寸变化（窗口缩放、分屏拖动、放映）时会重新计算铺满高度。
+ * 自动高度是「整页嵌入」语义：忽略粘贴代码里的固定宽度，并铺满整页高度；
+ * 舞台尺寸变化（窗口缩放、分屏拖动、放映）时会重新计算。
  * ========================================================================== */
 (function () {
     'use strict';
@@ -89,7 +90,7 @@
     ].join('');
 
     var TIP = '格式：第一行写「平台 id」或「url 地址」，可选行有 ratio / height / title；' +
-        'height 支持像素、auto（按内容自适应）、fit 或百分比（铺满可用高度）；' +
+        'height 支持像素、auto（按内容自适应）、fit 或百分比（按整页高度铺满）；' +
         '也可以直接粘贴其他平台复制的 <iframe …></iframe> 嵌入代码。' +
         '支持 ' + Object.keys(PLATFORMS).join(' / ') + ' 。';
 
@@ -321,8 +322,8 @@
         if (mode === 'fit') {
             var pct = Math.round((factor || 1) * 100);
             return pct >= 100
-                ? '铺满幻灯片一页的剩余可用高度，舞台尺寸变化时自动重算。'
-                : '占幻灯片剩余可用高度的 ' + pct + '%，舞台尺寸变化时自动重算。';
+                ? '按整页高度铺满（不扣掉上方标题 / 文字），舞台尺寸变化时自动重算。'
+                : '占整页高度的 ' + pct + '%，舞台尺寸变化时自动重算。';
         }
         return '';
     }
@@ -339,7 +340,7 @@
         // 高度优先级：自动模式 > 显式像素 height > 平台预设高度 > ratio 画幅
         var style;
         if (mode) {
-            // 先用画幅占位；块入 DOM 后由运行时按内容 / 可用高度改写为像素高度
+            // 先用画幅占位；块入 DOM 后由运行时按内容 / 整页高度改写为像素高度
             style = 'aspect-ratio:' + ratioCss(spec.ratio);
         } else {
             style = spec.height ? 'height:' + spec.height + 'px'
@@ -347,7 +348,8 @@
                     : 'aspect-ratio:' + ratioCss(spec.ratio);
         }
         // 宽度优先级：平台预设上限 > 粘贴代码里的宽度（作为上限，随容器收缩）
-        var maxW = preset.maxWidth || spec.width || 0;
+        // 自动高度是「整页嵌入」语义：忽略粘贴代码里的固定宽度与平台宽度上限，始终占满一行
+        var maxW = mode ? 0 : (preset.maxWidth || spec.width || 0);
         if (maxW) style += ';max-width:' + maxW + 'px';
 
         var attrs = 'src="' + escapeHtml(spec.url) + '" ' +
@@ -387,7 +389,8 @@
     var slideRO = null;      // 舞台尺寸观察器
     var observedSlide = null;
     var winHandler = null;
-    var refitTimer = 0;
+    var refitTimer = 0;      // 立即重算（0ms 合并）
+    var refitLater = 0;      // 等宿主防抖的 fitStage 之后再补一次
 
     function getSlide(ctx) {
         try { return ctx.getSlideEl ? ctx.getSlideEl() : null; } catch (e) { return null; }
@@ -445,22 +448,23 @@
         item.watched = false;
     }
 
-    // 铺满：按这块 iframe 在舞台里上方已占用的高度，算出剩余可用高度
+    // 铺满：以「一整页」为基准（不减上方标题 / 文字），舞台尺寸变化时重算
     function applyFit(item, ctx) {
         var slide = getSlide(ctx);
         if (!slide || !slide.isConnected) return;
         var cs = window.getComputedStyle(slide);
+        var padTop = parseFloat(cs.paddingTop) || 0;
         var padBottom = parseFloat(cs.paddingBottom) || 0;
-        var slideRect = slide.getBoundingClientRect();
         var boxRect = item.box.getBoundingClientRect();
         if (!boxRect.width) return;   // 还没布局（面板隐藏等），等尺寸观察器再算
         var bar = item.wrap.querySelector('.ifp-bar');
         var barH = bar ? bar.getBoundingClientRect().height : 0;
         var wrapCs = window.getComputedStyle(item.wrap);
-        var marginB = parseFloat(wrapCs.marginBottom) || 0;
-        // box 在滚动内容里的偏移（与当前滚动位置无关）
-        var offset = boxRect.top - slideRect.top + (slide.scrollTop || 0);
-        var avail = slide.clientHeight - offset - padBottom - barH - 6 - marginB;
+        var marginTop = parseFloat(wrapCs.marginTop) || 0;
+        var marginBottom = parseFloat(wrapCs.marginBottom) || 0;
+        // 一页内容区高度；上方若还有标题 / 文字，iframe 会自然伸出页外，由舞台滚动查看
+        var pageH = slide.clientHeight - padTop - padBottom;
+        var avail = pageH - marginTop - marginBottom - barH - 6;
         if (!isFinite(avail)) return;
         var h = Math.max(FIT_MIN, Math.round(avail * (item.factor || 1)));
         setBoxHeight(item, h);
@@ -535,11 +539,9 @@
             item.doc = doc;
         }
         var h = contentHeight(doc);
-        if (h > 0) {
-            setBoxHeight(item, Math.max(AUTO_MIN, Math.min(h, AUTO_MAX)));
-        } else if (item.loaded) {
-            setBoxHeight(item, AUTO_MIN);
-        }
+        // h <= 0：页面用 fixed / 绝对定位铺满（读不到文档流高度），保留当前占位高度，
+        // 不要缩成一条；这类页面通常本来就希望占满可用区域。
+        if (h > 0) setBoxHeight(item, Math.max(AUTO_MIN, Math.min(h, AUTO_MAX)));
         watchDoc(item, ctx);
     }
 
@@ -613,11 +615,17 @@
     }
 
     // 窗口 / 舞台尺寸变化 → 重新铺满
+    // 宿主的 fitStage 是防抖的（80–120ms），所以除了立即重算，再补两次延迟重算
     function bindGlobal(ctx) {
         if (winHandler) return;
-        winHandler = function () { requestRefit(ctx); };
+        winHandler = function () {
+            requestRefit(ctx);
+            if (refitLater) clearTimeout(refitLater);
+            refitLater = setTimeout(function () { refitLater = 0; refitAll(ctx); }, 220);
+        };
         window.addEventListener('resize', winHandler);
         window.addEventListener('orientationchange', winHandler);
+        document.addEventListener('fullscreenchange', winHandler);
     }
 
     function bindSlideRO(ctx) {
@@ -640,9 +648,11 @@
         if (winHandler) {
             window.removeEventListener('resize', winHandler);
             window.removeEventListener('orientationchange', winHandler);
+            document.removeEventListener('fullscreenchange', winHandler);
             winHandler = null;
         }
         if (refitTimer) { clearTimeout(refitTimer); refitTimer = 0; }
+        if (refitLater) { clearTimeout(refitLater); refitLater = 0; }
     }
 
     /* ---------------- 选项卡模板 ---------------- */
@@ -749,10 +759,10 @@
             tab.addHint('支持直接粘贴其他平台复制的整段 <code>&lt;iframe …&gt;&lt;/iframe&gt;</code> 代码，' +
                 'src / 宽高 / allow 等属性会自动识别；也可写平台行，可选行：<code>ratio 16:9</code>、' +
                 '<code>height 380</code>、<code>title 说明</code>。<br>' +
-                '自动高度：<code>height auto</code> 按嵌入页面的内容高度撑开，' +
-                '<code>height fit</code> 或 <code>height 100%</code> 铺满一页，' +
-                '<code>height 60%</code> 占可用高度的 60%；' +
-                '跨域页面读不到内容高度，<code>auto</code> 会自动改为铺满。<br>' +
+                '自动高度（整页嵌入，忽略粘贴代码里的固定宽度）：<code>height auto</code> 按页面内容撑开，' +
+                '<code>height fit</code> 或 <code>height 100%</code> 按整页高度铺满，' +
+                '<code>height 60%</code> 占整页高度的 60%；' +
+                '跨域页面读不到内容高度，<code>auto</code> 会自动改为铺满一页。<br>' +
                 '部分平台会校验来源域名，若内嵌失败可用播放器右下角的「新窗口打开」。');
             ctx.log('已注入「iframe 播放器」选项卡（含自动高度）');
         },
