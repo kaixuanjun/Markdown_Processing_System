@@ -505,7 +505,7 @@ function refreshAll() {
 
 ## 12. 参考实现
 
-`plugs/iframe/` 是最小的完整示例：单文件、无运行时依赖、纯字符串渲染（`iframe` 是声明式的，不需要 `blockRendered`）。
+`plugs/iframe/` 是最小的完整示例：单文件、无运行时依赖，围栏主体是纯字符串渲染（`iframe` 本身是声明式的）；只有自动高度（`height auto` / `fit`）在 `blockRendered` 里做后置测量。
 建议从它开始读，再对照 `plugs/mps-manim/` 看复杂场景。
 
 `plugs/mps-manim/` 是最完整的示例，覆盖了：

@@ -73,7 +73,30 @@ title 网易云单曲（把 ID 换成你的）
 块内还可以写 `ratio` / `height` / `title` 行来覆盖识别结果。
 
 ```iframe
-<iframe src="//player.bilibili.com/player.html?bvid=BV1r7et6PEVQ" scrolling="no" frameborder="no" style="width: 800px;height: 450px;" allowfullscreen="true"></iframe>
+<iframe src="https://www.x360.cn/tour/ccb91df465b1d996" frameborder="no" border="0" style="width: 480px;height: 240px;" allowfullscreen="true"></iframe>
+```
+
+## 自动高度
+
+不想手写高度时，`height` 可以写 `auto` 或 `fit`：
+
+- `height auto`：按嵌入页面的**真实内容高度**撑开（同源页面可测；跨域读不到内容高度时，
+  自动回退为铺满一页，角标会显示「跨域 · 铺满」）。
+- `height fit`（等价于 `height 100%`）：铺满幻灯片剩余可用高度，舞台缩放 / 分屏拖动时自动重算。
+- `height 60%`：占可用高度的 60%（10%–100%）。
+
+```iframe
+url https://example.com/
+height auto
+title 自动高度（示例页面跨域，读不到内容时会自动改为铺满）
+```
+
+`height fit` 的效果（网页自己会缩放的，用这个最合适）：
+
+```iframe
+url https://example.com/
+height fit
+title 铺满一页
 ```
 
 # 数学动画（插件）
